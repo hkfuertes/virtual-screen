@@ -6,13 +6,13 @@ const GLib = imports.gi.GLib;
 const Settings = imports.ui.settings;
 const Lang = imports.lang;
 
-const UUID = "virtual-screen@miproyecto";
+const UUID = "virtual-screen@hkfuertes";
 
-function MyApplet(metadata, orientation, panelHeight, instanceId) {
+function VirtualScreenApplet(metadata, orientation, panelHeight, instanceId) {
     this._init(metadata, orientation, panelHeight, instanceId);
 }
 
-MyApplet.prototype = {
+VirtualScreenApplet.prototype = {
     __proto__: Applet.TextIconApplet.prototype,
 
     _init: function(metadata, orientation, panelHeight, instanceId) {
@@ -145,5 +145,5 @@ MyApplet.prototype = {
 };
 
 function main(metadata, orientation, panelHeight, instanceId) {
-    return new MyApplet(metadata, orientation, panelHeight, instanceId);
+    return new VirtualScreenApplet(metadata, orientation, panelHeight, instanceId);
 }

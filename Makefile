@@ -44,3 +44,10 @@ clean:
 restart-cinnamon:
 	@cinnamon --replace >/dev/null 2>&1 &
 	@echo "Cinnamon reiniciado"
+
+
+# ./hdmi-ipad-manager.sh on           # Crea + ON (2360x1640@60)
+# ./hdmi-ipad-manager.sh on -w 1920 -h 1080  # Custom
+# ./hdmi-ipad-manager.sh off          # OFF + cleanup + force=0
+# ./hdmi-ipad-manager.sh change -w 3840 -h 2160  # Cambia y aplica
+# ./hdmi-ipad-manager.sh status       # Estado
