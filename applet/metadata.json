@@ -1,7 +1,10 @@
 {
-  "uuid": "virtual-screen@miproyecto",
-  "name": "HDMI Virtual + Sunshine",
-  "description": "Controla HDMI-1 virtual (xrandr) y acciones relacionadas con Sunshine.",
-  "icon": "video-display",
-  "max-instances": -1
+  "uuid": "x11-hdmi@tuusuario",
+  "name": "HDMI Manager",
+  "description": "Manage HDMI-1 output for iPad Air (2360x1640@60Hz)",
+  "version": "1.0",
+  "multiversion-format": "always",
+  "cinnamon-version": ["5.8", "6.0"],
+  "orientation": "vertical",
+  "max-instances": 1
 }
