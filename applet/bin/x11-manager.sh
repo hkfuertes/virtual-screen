@@ -1,10 +1,13 @@
 #!/bin/bash
 # x11-manager.sh - HDMI X11 manager (On/Off)
 
-CONNECTOR_SYSFS="/sys/class/drm/card1-HDMI-A-1"
+CARD=1; PORT=HDMI-A-1; OUTPUT="HDMI-1"
+CONNECTOR_SYSFS="/sys/class/drm/card${CARD}-${PORT}"
+CONNECTOR_DEBUGFS="/sys/kernel/debug/dri/${CARD}/${PORT}"
+
 FORCE_FILE="${CONNECTOR_SYSFS}/force"
 STATUS_FILE="${CONNECTOR_SYSFS}/status"
-OUTPUT="HDMI-1"
+OVERRIDE_FILE="${CONNECTOR_DEBUGFS}/edid_override"
 
 # ---------- Root helpers ----------
 have_tty() { [ -t 0 ] && [ -t 1 ]; }
@@ -29,6 +32,10 @@ connector() {
   [ -w "$FORCE_FILE" ] && write_sysfs on "$FORCE_FILE" || write_sysfs "$1" "$STATUS_FILE"
 }
 
+override_edid() {
+  run_root cat $OVERRIDE_FILE < "$1"
+}
+
 # ---------- Main ----------
 case "$1" in
   on)
@@ -37,8 +44,11 @@ case "$1" in
   off)
     connector off
   ;;
+  edid)
+    override_edid ./edid.bin
+  ;;
   *)
-    echo "Usage: $0 on|off"
+    echo "Usage: $0 on|off|edid"
     exit 1
   ;;
 esac
