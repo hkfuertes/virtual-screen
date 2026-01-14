@@ -32,9 +32,19 @@ connector() {
   [ -w "$FORCE_FILE" ] && write_sysfs on "$FORCE_FILE" || write_sysfs "$1" "$STATUS_FILE"
 }
 
-override_edid() {
-  run_root cat $OVERRIDE_FILE < "$1"
+set_mode() {
+    width=$1
+    height=$2
+    refresh=$3
+
+    MODELINE=$(cvt $width $height $refresh | grep Modeline | sed 's/Modeline //')
+    MODE_NAME=$(echo "$MODELINE" | awk '{print $1}')
+
+    xrandr | grep -q "$MODE_NAME" || xrandr --newmode $MODELINE
+    xrandr --query | grep -A1 "^$OUTPUT" | grep -q "$MODE_NAME" || xrandr --addmode $OUTPUT $MODE_NAME
+    xrandr --output $OUTPUT --mode $MODE_NAME --left-of eDP-1
 }
+
 
 # ---------- Main ----------
 case "$1" in
@@ -44,11 +54,15 @@ case "$1" in
   off)
     connector off
   ;;
-  edid)
-    override_edid ./edid.bin
+  set)
+    set_mode "$2" "$3" "$4"
+  ;;
+  index)
+    INDEX=$(xrandr --listactivemonitors | grep "$OUTPUT" | awk '{print $1}' | tr -d ':')
+    echo "$INDEX"
   ;;
   *)
-    echo "Usage: $0 on|off|edid"
+    echo "Usage: $0 on|off|index|set <width> <height> <refresh_rate>"
     exit 1
   ;;
 esac

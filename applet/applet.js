@@ -26,13 +26,11 @@ class VirtualScreenApplet extends Applet.IconApplet {
     const menu = this._applet_context_menu;
     menu.removeAll();
 
-    /* HDMI ON */
-    this._items.on = new PopupMenu.PopupMenuItem('HDMI ON');
+    this._items.on = new PopupMenu.PopupMenuItem('Activate');
     this._items.on.connect('activate', () => this._run('on'));
     menu.addMenuItem(this._items.on);
 
-    /* HDMI OFF */
-    this._items.off = new PopupMenu.PopupMenuItem('HDMI OFF');
+    this._items.off = new PopupMenu.PopupMenuItem('Deactivate');
     this._items.off.connect('activate', () => this._run('off'));
     menu.addMenuItem(this._items.off);
   }
