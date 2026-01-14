@@ -1,5 +1,5 @@
 #!/bin/bash
-# x11-manager.sh - X11 HDMI-1 manager (modular version)
+# x11-manager.sh - X11 HDMI-1 manager (terminal + GUI compatible)
 # Usage: ./x11-manager.sh <cmd> [-w WIDTH] [-h HEIGHT] [-r REFRESH]
 
 CONNECTOR_SYSFS="/sys/class/drm/card1-HDMI-A-1"
@@ -11,6 +11,35 @@ OUTPUT="HDMI-1"
 WIDTH=2360
 HEIGHT=1640
 REFRESH=60
+
+# --- Root helpers (terminal/GUI auto-detect) ---
+
+have_tty() {
+  [ -t 0 ] && [ -t 1 ]
+}
+
+have_gui() {
+  [ -n "${DISPLAY:-}" ] || [ -n "${WAYLAND_DISPLAY:-}" ]
+}
+
+run_root() {
+  if have_tty; then
+    sudo "$@"
+    return $?
+  fi
+  if have_gui && command -v pkexec >/dev/null 2>&1; then
+    pkexec "$@"
+    return $?
+  fi
+  echo "Error: need root privileges but no TTY for sudo and no GUI/pkexec available." >&2
+  return 1
+}
+
+write_sysfs() {
+  local value="$1"
+  local path="$2"
+  printf '%s\n' "$value" | run_root /usr/bin/tee "$path" >/dev/null
+}
 
 # --- Functions ---
 
@@ -39,55 +68,44 @@ parse_opts() {
 
 force_connector_on() {
   if [ -w "$FORCE_FILE" ]; then
-    echo "on" | sudo tee "$FORCE_FILE" >/dev/null
+    write_sysfs "on" "$FORCE_FILE"
   else
-    echo "on" | sudo tee "$STATUS_FILE" >/dev/null
+    write_sysfs "on" "$STATUS_FILE"
   fi
 }
 
 force_connector_off() {
   if [ -w "$FORCE_FILE" ]; then
-    echo "off" | sudo tee "$FORCE_FILE" >/dev/null
+    write_sysfs "detect" "$FORCE_FILE"
   else
-    echo "off" | sudo tee "$STATUS_FILE" >/dev/null
+    write_sysfs "off" "$STATUS_FILE"
   fi
 }
 
 generate_modeline() {
-  MODELINE=$(cvt "$WIDTH" "$HEIGHT" "$REFRESH" 2>/dev/null | grep Modeline | sed 's/Modeline "\([^"]*\)" //')
+  local width="$1"
+  local height="$2"
+  local refresh="$3"
+  MODELINE=$(cvt "$width" "$height" "$refresh" 2>/dev/null | grep Modeline | sed 's/Modeline "\([^"]*\)" //')
 }
 
 create_mode() {
-  generate_modeline
+  generate_modeline "$@"
   if [ -n "$MODELINE" ]; then
     xrandr --newmode "$MODE_NAME" $MODELINE 2>/dev/null || true
     xrandr --addmode "$OUTPUT" "$MODE_NAME" 2>/dev/null || true
   fi
 }
 
-turn_on_hdmi() {
-  echo "Creating + turning HDLMI-1 ON: ${WIDTH}x${HEIGHT}@${REFRESH}Hz..."
-  force_connector_on
-  sleep 2
-  xrandr --output "$OUTPUT" --off 2>/dev/null || true
-  create_mode
-  xrandr --output "$OUTPUT" --mode "$MODE_NAME" --left-of eDP-1
-  echo "HDMI-1 ON: $MODE_NAME"
-}
-
-turn_off_hdmi() {
-  echo "Turning HDMI-1 OFF and cleaning up..."
-  xrandr --output "$OUTPUT" --off 2>/dev/null || true
-  xrandr --delmode "$OUTPUT" "$MODE_NAME" 2>/dev/null || true
-  xrandr --rmmode "$MODE_NAME" 2>/dev/null || true
-  force_connector_off
-  echo "HDMI-1 OFF (force reset)"
-}
-
 change_hdmi_resolution() {
-  echo "Changing HDMI-1 to ${WIDTH}x${HEIGHT}@${REFRESH}Hz..."
-  create_mode
-  xrandr --output "$OUTPUT" --mode "$MODE_NAME"
+  local width="$1"
+  local height="$2"
+  local refresh="$3"
+
+  echo "Changing HDMI-1 to ${width}x${height}@${refresh}Hz..."
+  xrandr --output "$OUTPUT" --off 2>/dev/null || true
+  create_mode "$width" "$height" "$refresh"
+  xrandr --output "$OUTPUT" --mode "$MODE_NAME" --left-of eDP-1
   echo "HDMI-1 changed: $MODE_NAME"
 }
 
@@ -105,9 +123,13 @@ parse_opts "$@"
 MODE_NAME="${WIDTH}x${HEIGHT}_${REFRESH}.00"
 
 case "$CMD" in
-  on) turn_on_hdmi ;;
-  off) turn_off_hdmi ;;
-  change) change_hdmi_resolution ;;
+  on) 
+    force_connector_on
+    sleep 2
+    change_hdmi_resolution "$WIDTH" "$HEIGHT" "$REFRESH"
+  ;;
+  off) force_connector_off ;;
+  change) change_hdmi_resolution "$WIDTH" "$HEIGHT" "$REFRESH" ;;
   status) show_status ;;
   *) usage ;;
 esac
