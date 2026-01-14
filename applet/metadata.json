@@ -1,0 +1,7 @@
+{
+  "uuid": "virtual-screen@miproyecto",
+  "name": "HDMI Virtual + Sunshine",
+  "description": "Controla HDMI-1 virtual (xrandr) y acciones relacionadas con Sunshine.",
+  "icon": "video-display",
+  "max-instances": -1
+}

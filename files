@@ -1,0 +1,23 @@
+mi-proyecto/
+├── README.md
+├── LICENSE
+├── scripts/
+│   ├── vscreenctl              # tu wrapper CLI (toggle/set/status…)
+│   ├── sunshinectl             # opcional: wrapper para start/stop/restart
+│   └── lib/
+│       ├── x11_virtual_screen.sh
+│       └── common.sh
+├── cinnamon-applet/
+│   └── virtual-screen@miproyecto/
+│       ├── metadata.json
+│       ├── applet.js
+│       ├── settings-schema.json
+│       ├── icons/
+│       │   ├── vscreen-enabled-symbolic.svg
+│       │   └── vscreen-disabled-symbolic.svg
+│       └── po/                 # opcional (traducciones)
+│           ├── es.po
+│           └── template.pot
+└── dev/
+    ├── install-symlink.sh       # luego: symlink a ~/.local/share/cinnamon/applets/...
+    └── restart-cinnamon.sh
