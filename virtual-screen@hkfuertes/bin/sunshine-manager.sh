@@ -48,7 +48,7 @@ output_name = $index
 # Automatic resolution management
 global_prep_cmd = [
   {
-    "do": "bash -c 'export DISPLAY=$display && $SCRIPT_DIR/x11-manager.sh change -w \$SUNSHINE_CLIENT_WIDTH -h \$SUNSHINE_CLIENT_HEIGHT -r \$SUNSHINE_CLIENT_FPS'",
+    "do": "bash -c \"export DISPLAY=$display && $SCRIPT_DIR/sunshine-manager.sh set-resolution\"",
     "undo": ""
   }
 ]
@@ -99,15 +99,24 @@ case "$1" in
     backup_sunshine_config
     configure_sunshine
     ;;
+  set-resolution)
+    # Set resolution from Sunshine environment variables
+    width="${SUNSHINE_CLIENT_WIDTH:-1920}"
+    height="${SUNSHINE_CLIENT_HEIGHT:-1080}"
+    fps="${SUNSHINE_CLIENT_FPS:-60}"
+    echo "Setting resolution from Sunshine: ${width}x${height}@${fps}Hz"
+    "$X11_MANAGER_SCRIPT" -w "$width" -h "$height" -r "$fps" change
+    ;;
   *)
-    echo "Usage: $0 {start|stop|restart|status|configure}"
+    echo "Usage: $0 {start|stop|restart|status|configure|set-resolution}"
     echo ""
     echo "Commands:"
-    echo "  start     - Backup config, configure and start Sunshine"
-    echo "  stop      - Stop Sunshine and restore original config"
-    echo "  restart   - Restart Sunshine"
-    echo "  status    - Show Sunshine status"
-    echo "  configure - Backup and configure Sunshine without starting"
+    echo "  start          - Backup config, configure and start Sunshine"
+    echo "  stop           - Stop Sunshine and restore original config"
+    echo "  restart        - Restart Sunshine"
+    echo "  status         - Show Sunshine status"
+    echo "  configure      - Backup and configure Sunshine without starting"
+    echo "  set-resolution - Set resolution from Sunshine environment variables"
     exit 1
     ;;
 esac
