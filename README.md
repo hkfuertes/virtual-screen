@@ -80,14 +80,14 @@ The applet automatically:
 ### Command Line Usage
 
 ```bash
-# Activate virtual display
+# Activate virtual display connector (no resolution change)
 ./applet/bin/x11-manager.sh on
 
 # Deactivate virtual display
 ./applet/bin/x11-manager.sh off
 
-# Set custom resolution
-./applet/bin/x11-manager.sh set 1920 1080 60
+# Change resolution (requires active connector)
+./applet/bin/x11-manager.sh -w 1920 -h 1080 -r 60 change
 
 # Get monitor index
 ./applet/bin/x11-manager.sh index
@@ -229,11 +229,17 @@ make restart-cinnamon
 
 #### `x11-manager.sh`
 
-**Parameters:**
-- `on`: Activate HDMI connector
-- `off`: Deactivate HDMI connector  
-- `set <w> <h> <r>`: Set resolution (width, height, refresh)
-- `index`: Get monitor index
+**Commands:**
+- `on`: Activate HDMI connector (no resolution change)
+- `off`: Deactivate HDMI connector
+- `change`: Change resolution using current WIDTH/HEIGHT/REFRESH values
+- `status`: Show current HDMI status
+- `index`: Get monitor index for Sunshine
+
+**Options:**
+- `-w WIDTH`: Set width for resolution operations
+- `-h HEIGHT`: Set height for resolution operations
+- `-r REFRESH`: Set refresh rate for resolution operations
 
 **Permissions:** Requires administrator privileges for sysfs writing
 

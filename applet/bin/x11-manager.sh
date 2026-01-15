@@ -46,7 +46,7 @@ write_sysfs() {
 usage() {
   echo "Usage: $0 <cmd> [-w WIDTH] [-h HEIGHT] [-r REFRESH]"
   echo "Commands:"
-  echo "  on       - Create mode + turn HDMI ON"
+  echo "  on       - Turn HDMI connector ON (no resolution change)"
   echo "  off      - Turn HDMI OFF and clean modes"
   echo "  change   - Change resolution and apply"
   echo "  status   - Show current HDMI status"
@@ -126,8 +126,6 @@ MODE_NAME="${WIDTH}x${HEIGHT}_${REFRESH}.00"
 case "$CMD" in
   on)
     force_connector_on
-    sleep 2
-    change_hdmi_resolution "$WIDTH" "$HEIGHT" "$REFRESH"
   ;;
   off) force_connector_off ;;
   change) change_hdmi_resolution "$WIDTH" "$HEIGHT" "$REFRESH" ;;
