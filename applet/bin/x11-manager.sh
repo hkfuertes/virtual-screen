@@ -8,8 +8,8 @@ STATUS_FILE="${CONNECTOR_SYSFS}/status"
 OUTPUT="HDMI-1"
 
 # Default values (iPad Air)
-WIDTH=2360
-HEIGHT=1640
+WIDTH=1920
+HEIGHT=1080
 REFRESH=60
 
 # --- Root helpers (terminal/GUI auto-detect) ---
@@ -124,9 +124,7 @@ parse_opts "$@"
 MODE_NAME="${WIDTH}x${HEIGHT}_${REFRESH}.00"
 
 case "$CMD" in
-  on)
-    force_connector_on
-  ;;
+  on) force_connector_on ;;
   off) force_connector_off ;;
   change) change_hdmi_resolution "$WIDTH" "$HEIGHT" "$REFRESH" ;;
   status) show_status ;;
