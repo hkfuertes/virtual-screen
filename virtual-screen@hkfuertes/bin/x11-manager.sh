@@ -44,27 +44,28 @@ write_sysfs() {
 # --- Functions ---
 
 usage() {
-  echo "Usage: $0 <cmd> [-w WIDTH] [-h HEIGHT] [-r REFRESH]"
+  echo "Usage: $0 <cmd> [args...]"
   echo "Commands:"
-  echo "  on       - Turn HDMI connector ON (no resolution change)"
-  echo "  off      - Turn HDMI OFF and clean modes"
-  echo "  change   - Change resolution and apply"
-  echo "  status   - Show current HDMI status"
-  echo "  index    - Show monitor index for Sunshine"
+  echo "  on                    - Turn HDMI connector ON (no resolution change)"
+  echo "  off                   - Turn HDMI OFF and clean modes"
+  echo "  change WIDTH HEIGHT REFRESH - Change resolution and apply"
+  echo "  status                - Show current HDMI status"
+  echo "  index                 - Show monitor index for Sunshine"
   exit 1
 }
 
 parse_opts() {
-  while getopts "w:h:r:" opt; do
-    case $opt in
-      w) WIDTH="$OPTARG" ;;
-      h) HEIGHT="$OPTARG" ;;
-      r) REFRESH="$OPTARG" ;;
-      *) usage ;;
-    esac
-  done
-  shift $((OPTIND - 1))
   CMD="$1"
+  case "$CMD" in
+    change)
+      WIDTH="${2:-1920}"
+      HEIGHT="${3:-1080}"
+      REFRESH="${4:-60}"
+      ;;
+    *)
+      # For other commands, ignore extra args
+      ;;
+  esac
 }
 
 force_connector_on() {

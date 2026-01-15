@@ -105,7 +105,7 @@ case "$1" in
     height="${SUNSHINE_CLIENT_HEIGHT:-1080}"
     fps="${SUNSHINE_CLIENT_FPS:-60}"
     echo "Setting resolution from Sunshine: ${width}x${height}@${fps}Hz"
-    "$X11_MANAGER_SCRIPT" -w "$width" -h "$height" -r "$fps" change
+    "$X11_MANAGER_SCRIPT" change "$width" "$height" "$fps"
     ;;
   *)
     echo "Usage: $0 {start|stop|restart|status|configure|set-resolution}"
