@@ -96,16 +96,16 @@ The applet automatically:
 ### Sunshine Integration
 
 ```bash
-# Start Sunshine with automatic configuration
+# Start Sunshine with automatic configuration (backs up original config)
 ./applet/bin/sunshine-manager.sh start
 
-# Stop Sunshine and restore original configuration
+# Stop Sunshine and restore original configuration automatically
 ./applet/bin/sunshine-manager.sh stop
 
 # Check Sunshine status
 ./applet/bin/sunshine-manager.sh status
 
-# Manual configuration
+# Configure Sunshine without starting (also backs up config)
 ./applet/bin/sunshine-manager.sh configure
 ```
 
@@ -246,16 +246,17 @@ make restart-cinnamon
 #### `sunshine-manager.sh`
 
 **Commands:**
-- `start`: Configure and start Sunshine service
-- `stop`: Stop Sunshine service
+- `start`: Backup original config, configure for virtual display, and start service
+- `stop`: Stop service and automatically restore original configuration
 - `restart`: Restart Sunshine service
 - `status`: Show current Sunshine status
-- `configure`: Configure Sunshine without starting
+- `configure`: Backup config and configure for virtual display (without starting)
 
 **Features:**
-- Automatic Sunshine configuration with inline commands
+- Automatic backup and restore of Sunshine configuration
+- Inline bash commands for dynamic resolution management
 - Service management via systemd
-- Simple and focused functionality
+- Clean configuration management
 
 ## Advanced Configuration
 

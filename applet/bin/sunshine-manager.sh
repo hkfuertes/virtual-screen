@@ -5,6 +5,22 @@ SCRIPT_DIR="$(dirname "$0")"
 X11_MANAGER_SCRIPT="$SCRIPT_DIR/x11-manager.sh"
 
 SUNSHINE_CONF="$HOME/.config/Sunshine/sunshine.conf"
+SUNSHINE_CONF_BACKUP="$HOME/.config/Sunshine/sunshine.conf.backup"
+
+# Backup and restore functions
+backup_sunshine_config() {
+  if [ -f "$SUNSHINE_CONF" ] && [ ! -f "$SUNSHINE_CONF_BACKUP" ]; then
+    cp "$SUNSHINE_CONF" "$SUNSHINE_CONF_BACKUP"
+    echo "Backed up original Sunshine configuration"
+  fi
+}
+
+restore_sunshine_config() {
+  if [ -f "$SUNSHINE_CONF_BACKUP" ]; then
+    mv "$SUNSHINE_CONF_BACKUP" "$SUNSHINE_CONF"
+    echo "Restored original Sunshine configuration"
+  fi
+}
 
 # Get monitor index
 get_monitor_index() {
@@ -45,8 +61,12 @@ EOF
 # Main commands
 case "$1" in
   start)
-    echo "Configuring Sunshine..."
+    echo "Backing up current Sunshine configuration..."
+    backup_sunshine_config
+
+    echo "Configuring Sunshine for virtual display..."
     configure_sunshine
+
     echo "Starting Sunshine service..."
     systemctl --user start sunshine
     systemctl --user is-active --quiet sunshine && echo "Sunshine started successfully" || echo "Failed to start Sunshine"
@@ -55,6 +75,9 @@ case "$1" in
     echo "Stopping Sunshine service..."
     systemctl --user stop sunshine
     systemctl --user is-active --quiet sunshine || echo "Sunshine stopped successfully"
+
+    echo "Restoring original Sunshine configuration..."
+    restore_sunshine_config
     ;;
   restart)
     "$0" stop
@@ -69,17 +92,18 @@ case "$1" in
     fi
     ;;
   configure)
+    backup_sunshine_config
     configure_sunshine
     ;;
   *)
     echo "Usage: $0 {start|stop|restart|status|configure}"
     echo ""
     echo "Commands:"
-    echo "  start     - Configure and start Sunshine"
-    echo "  stop      - Stop Sunshine"
+    echo "  start     - Backup config, configure and start Sunshine"
+    echo "  stop      - Stop Sunshine and restore original config"
     echo "  restart   - Restart Sunshine"
     echo "  status    - Show Sunshine status"
-    echo "  configure - Configure Sunshine without starting"
+    echo "  configure - Backup and configure Sunshine without starting"
     exit 1
     ;;
 esac
