@@ -45,10 +45,10 @@ class VirtualScreenApplet extends Applet.IconApplet {
   /* ---------------- State Management ---------------- */
 
   _refreshState() {
-    // Check display state - look for HDMI-1 in xrandr output
+    // Check display state using x11-manager is-connected
     try {
-      const [success, stdout] = GLib.spawn_command_line_sync('xrandr');
-      this._displayState = success && stdout.toString().includes('HDMI-1 connected');
+      const [success, stdout] = GLib.spawn_command_line_sync(`${this._path}/bin/x11-manager.sh is-connected`);
+      this._displayState = success && stdout.toString().trim() === 'yes';
     } catch (e) {
       this._displayState = false;
     }
@@ -56,9 +56,9 @@ class VirtualScreenApplet extends Applet.IconApplet {
     // Check Sunshine state
     try {
       const [success, stdout] = GLib.spawn_command_line_sync(
-        'systemctl --user is-active sunshine'
+        `${this._path}/bin/sunshine-manager.sh status`
       );
-      this._sunshineState = success && stdout.toString().trim() === 'active';
+      this._sunshineState = success && stdout.toString().trim() === 'running';
     } catch (e) {
       this._sunshineState = false;
     }
@@ -105,14 +105,15 @@ class VirtualScreenApplet extends Applet.IconApplet {
     // Update state immediately for better UX
     this._sunshineState = state;
     
-    // Refresh after a short delay to confirm the change
-    GLib.timeout_add(GLib.PRIORITY_DEFAULT, 2000, () => {
+    // Refresh after a delay to confirm the change
+    GLib.timeout_add(GLib.PRIORITY_DEFAULT, 5000, () => {
       this._refreshState();
       return false;
     });
   }
 
   _startSunshine() {
+    global.log('Virtual Screen: Starting Sunshine');
     // Show notification
     GLib.spawn_command_line_async('notify-send "Virtual Screen" "Starting Sunshine streaming..."');
 
@@ -121,6 +122,7 @@ class VirtualScreenApplet extends Applet.IconApplet {
   }
 
   _stopSunshine() {
+    global.log('Virtual Screen: Stopping Sunshine');
     // Show notification
     GLib.spawn_command_line_async('notify-send "Virtual Screen" "Stopping Sunshine streaming..."');
 
@@ -147,7 +149,15 @@ class VirtualScreenApplet extends Applet.IconApplet {
   _runSunshine(cmd, args = []) {
     const q = s => `"${String(s).replace(/["\\$`]/g, '\\$&')}"`;
     const cmdline = [q(this._sunshineScript()), q(cmd), ...args.map(q)].join(' ');
-    GLib.spawn_command_line_async(cmdline);
+    global.log(`Virtual Screen: Executing: ${cmdline}`);
+    try {
+      const [success, stdout, stderr] = GLib.spawn_command_line_sync(cmdline);
+      const out = stdout ? stdout.toString() : '';
+      const err = stderr ? stderr.toString() : '';
+      global.log(`Virtual Screen: Command result - success: ${success}, stdout: ${out}, stderr: ${err}`);
+    } catch (e) {
+      global.log(`Virtual Screen: Command failed with exception: ${e}`);
+    }
   }
 }
 

@@ -50,6 +50,7 @@ usage() {
   echo "  off                   - Turn HDMI OFF and clean modes"
   echo "  change WIDTH HEIGHT REFRESH - Change resolution and apply"
   echo "  status                - Show current HDMI status"
+  echo "  is-connected          - Print 'yes' if display is connected, 'no' otherwise"
   echo "  index                 - Show monitor index for Sunshine"
   exit 1
 }
@@ -129,6 +130,13 @@ case "$CMD" in
   off) force_connector_off ;;
   change) change_hdmi_resolution "$WIDTH" "$HEIGHT" "$REFRESH" ;;
   status) show_status ;;
+  is-connected)
+    if xrandr | grep -q "$OUTPUT connected"; then
+      echo "yes"
+    else
+      echo "no"
+    fi
+  ;;
   index)
     INDEX=$(xrandr --listactivemonitors 2>/dev/null | grep "$OUTPUT" | awk '{print $1}' | tr -d ':')
     echo "$INDEX"
