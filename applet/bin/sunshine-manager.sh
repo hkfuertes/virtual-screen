@@ -35,6 +35,7 @@ get_monitor_index() {
 # Configure Sunshine for virtual display
 configure_sunshine() {
   local index=$(get_monitor_index)
+  local display="${DISPLAY:-:0}"  # Use current DISPLAY or default to :0
 
   # Create or update sunshine.conf
   mkdir -p "$(dirname "$SUNSHINE_CONF")"
@@ -46,7 +47,7 @@ output_name = $index
 
 # Automatic resolution management
 global_prep_cmd = [
-  {"do":"bash -c 'DISPLAY=:0 $SCRIPT_DIR/x11-manager.sh change -w \$SUNSHINE_CLIENT_WIDTH -h \$SUNSHINE_CLIENT_HEIGHT -r \$SUNSHINE_CLIENT_FPS'","undo":"bash -c 'DISPLAY=:0 $SCRIPT_DIR/x11-manager.sh off'"}
+  {"do":"bash -c 'DISPLAY=$display $SCRIPT_DIR/x11-manager.sh change -w \$SUNSHINE_CLIENT_WIDTH -h \$SUNSHINE_CLIENT_HEIGHT -r \$SUNSHINE_CLIENT_FPS'","undo":"bash -c 'DISPLAY=$display $SCRIPT_DIR/x11-manager.sh off'"}
 ]
 
 # Basic settings
@@ -55,7 +56,7 @@ lan_encryption_mode = 0
 notify_pre_releases = disabled
 EOF
 
-  echo "Sunshine configured for virtual display (output $index)"
+  echo "Sunshine configured for virtual display (output $index, display $display)"
 }
 
 # Main commands

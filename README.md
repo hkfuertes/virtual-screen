@@ -186,8 +186,9 @@ The Sunshine manager provides simple service control:
 - `SUNSHINE_CLIENT_FPS` - Client refresh rate
 
 **Inline Commands:**
-- **Pre-up**: `bash -c 'DISPLAY=:0 x11-manager.sh change -w $SUNSHINE_CLIENT_WIDTH -h $SUNSHINE_CLIENT_HEIGHT -r $SUNSHINE_CLIENT_FPS'`
-- **Pre-down**: `bash -c 'DISPLAY=:0 x11-manager.sh off'`
+- **Pre-up**: `bash -c 'DISPLAY=$DISPLAY x11-manager.sh change -w $SUNSHINE_CLIENT_WIDTH -h $SUNSHINE_CLIENT_HEIGHT -r $SUNSHINE_CLIENT_FPS'`
+- **Pre-down**: `bash -c 'DISPLAY=$DISPLAY x11-manager.sh off'`
+- **Note**: DISPLAY is automatically detected when configuring Sunshine
 
 ## Development Guide
 
