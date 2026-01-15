@@ -1,7 +1,7 @@
 #!/bin/bash
 # sunshine-manager.sh - Sunshine management with automatic resolution
 
-SCRIPT_DIR="$(dirname "$0")"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 X11_MANAGER_SCRIPT="$SCRIPT_DIR/x11-manager.sh"
 
 SUNSHINE_CONF="$HOME/.config/Sunshine/sunshine.conf"
@@ -47,7 +47,10 @@ output_name = $index
 
 # Automatic resolution management
 global_prep_cmd = [
-  {"do":"bash -c 'DISPLAY=$display $SCRIPT_DIR/x11-manager.sh change -w \$SUNSHINE_CLIENT_WIDTH -h \$SUNSHINE_CLIENT_HEIGHT -r \$SUNSHINE_CLIENT_FPS'","undo":"bash -c 'DISPLAY=$display $SCRIPT_DIR/x11-manager.sh off'"}
+  {
+    "do": "bash -c 'echo \"[Virtual Screen] Executing prep command: changing resolution to \$SUNSHINE_CLIENT_WIDTH x \$SUNSHINE_CLIENT_HEIGHT @ \$SUNSHINE_CLIENT_FPS\" && export DISPLAY=$display && $SCRIPT_DIR/x11-manager.sh change -w \$SUNSHINE_CLIENT_WIDTH -h \$SUNSHINE_CLIENT_HEIGHT -r \$SUNSHINE_CLIENT_FPS && echo \"[Virtual Screen] Resolution changed successfully\"'",
+    "undo": "bash -c 'echo \"[Virtual Screen] Executing undo command: turning off virtual display\" && export DISPLAY=$display && $SCRIPT_DIR/x11-manager.sh off && echo \"[Virtual Screen] Virtual display turned off\"'"
+  }
 ]
 
 # Basic settings
