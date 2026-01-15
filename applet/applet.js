@@ -7,12 +7,15 @@ class VirtualScreenApplet extends Applet.IconApplet {
     super(orientation, panel_height, instance_id);
 
     this._path = metadata.path;
+    this._displayState = false;
+    this._sunshineState = false;
 
     this.set_applet_icon_name('preferences-desktop-display');
     this.set_applet_tooltip('Virtual Screen Manager');
 
     this._items = {};
     this._buildMenu();
+    this._refreshState();
   }
 
   /* Click izquierdo = abrir menú */
@@ -26,24 +29,118 @@ class VirtualScreenApplet extends Applet.IconApplet {
     const menu = this._applet_context_menu;
     menu.removeAll();
 
-    this._items.on = new PopupMenu.PopupMenuItem('Activate');
-    this._items.on.connect('activate', () => this._run('on'));
-    menu.addMenuItem(this._items.on);
+    // Display toggle button
+    this._items.displayToggle = new PopupMenu.PopupSwitchMenuItem('Virtual Display', this._displayState);
+    this._items.displayToggle.connect('toggled', (state) => this._toggleDisplay(state));
+    menu.addMenuItem(this._items.displayToggle);
 
-    this._items.off = new PopupMenu.PopupMenuItem('Deactivate');
-    this._items.off.connect('activate', () => this._run('off'));
-    menu.addMenuItem(this._items.off);
+    menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
+
+    // Sunshine toggle button
+    this._items.sunshineToggle = new PopupMenu.PopupSwitchMenuItem('Sunshine Streaming', this._sunshineState);
+    this._items.sunshineToggle.connect('toggled', (state) => this._toggleSunshine(state));
+    menu.addMenuItem(this._items.sunshineToggle);
   }
 
-  /* ---------------- Script runner ---------------- */
+  /* ---------------- State Management ---------------- */
 
-  _script() {
+  _refreshState() {
+    // Check display state - look for HDMI-1 in xrandr output
+    try {
+      const [success, stdout] = GLib.spawn_command_line_sync('xrandr');
+      this._displayState = success && stdout.toString().includes('HDMI-1 connected');
+    } catch (e) {
+      this._displayState = false;
+    }
+
+    // Check Sunshine state
+    try {
+      const [success, stdout] = GLib.spawn_command_line_sync(
+        'systemctl --user is-active sunshine'
+      );
+      this._sunshineState = success && stdout.toString().trim() === 'active';
+    } catch (e) {
+      this._sunshineState = false;
+    }
+
+    // Update menu items
+    if (this._items.displayToggle) {
+      this._items.displayToggle.setToggleState(this._displayState);
+    }
+    if (this._items.sunshineToggle) {
+      this._items.sunshineToggle.setToggleState(this._sunshineState);
+    }
+
+    // Update tooltip
+    const displayText = this._displayState ? 'Display ON' : 'Display OFF';
+    const sunshineText = this._sunshineState ? 'Sunshine ON' : 'Sunshine OFF';
+    this.set_applet_tooltip(`Virtual Screen: ${displayText}, ${sunshineText}`);
+  }
+
+  /* ---------------- Display Management ---------------- */
+
+  _toggleDisplay(state) {
+    const cmd = state ? 'on' : 'off';
+    this._runX11(cmd);
+    
+    // Update state immediately for better UX
+    this._displayState = state;
+    
+    // Refresh after a short delay to confirm the change
+    GLib.timeout_add(GLib.PRIORITY_DEFAULT, 1000, () => {
+      this._refreshState();
+      return false;
+    });
+  }
+
+  /* ---------------- Sunshine Management ---------------- */
+
+  _toggleSunshine(state) {
+    if (state) {
+      this._startSunshine();
+    } else {
+      this._stopSunshine();
+    }
+    
+    // Update state immediately for better UX
+    this._sunshineState = state;
+    
+    // Refresh after a short delay to confirm the change
+    GLib.timeout_add(GLib.PRIORITY_DEFAULT, 2000, () => {
+      this._refreshState();
+      return false;
+    });
+  }
+
+  _startSunshine() {
+    // Configure Sunshine with preup/predown scripts
+    this._runSunshine('start');
+  }
+
+  _stopSunshine() {
+    // Stop Sunshine and restore configuration
+    this._runSunshine('stop');
+  }
+
+  /* ---------------- Script runners ---------------- */
+
+  _x11Script() {
     return `${this._path}/bin/x11-manager.sh`;
   }
 
-  _run(cmd, args = []) {
+  _sunshineScript() {
+    return `${this._path}/bin/sunshine-manager.sh`;
+  }
+
+  _runX11(cmd, args = []) {
     const q = s => `"${String(s).replace(/["\\$`]/g, '\\$&')}"`;
-    const cmdline = [q(this._script()), q(cmd), ...args.map(q)].join(' ');
+    const cmdline = [q(this._x11Script()), q(cmd), ...args.map(q)].join(' ');
+    GLib.spawn_command_line_async(cmdline);
+  }
+
+  _runSunshine(cmd, args = []) {
+    const q = s => `"${String(s).replace(/["\\$`]/g, '\\$&')}"`;
+    const cmdline = [q(this._sunshineScript()), q(cmd), ...args.map(q)].join(' ');
     GLib.spawn_command_line_async(cmdline);
   }
 }
