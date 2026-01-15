@@ -21,6 +21,7 @@ class VirtualScreenApplet extends Applet.IconApplet {
   /* Click izquierdo = abrir menú */
   on_applet_clicked() {
     this._refreshState();
+    this._applet_context_menu.toggle();
   }
 
   /* ---------------- Menu ---------------- */
