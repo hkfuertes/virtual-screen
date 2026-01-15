@@ -113,11 +113,17 @@ class VirtualScreenApplet extends Applet.IconApplet {
   }
 
   _startSunshine() {
+    // Show notification
+    GLib.spawn_command_line_async('notify-send "Virtual Screen" "Starting Sunshine streaming..."');
+
     // Configure Sunshine with preup/predown scripts
     this._runSunshine('start');
   }
 
   _stopSunshine() {
+    // Show notification
+    GLib.spawn_command_line_async('notify-send "Virtual Screen" "Stopping Sunshine streaming..."');
+
     // Stop Sunshine and restore configuration
     this._runSunshine('stop');
   }

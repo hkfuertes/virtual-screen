@@ -4,8 +4,8 @@
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 X11_MANAGER_SCRIPT="$SCRIPT_DIR/x11-manager.sh"
 
-SUNSHINE_CONF="$HOME/.config/Sunshine/sunshine.conf"
-SUNSHINE_CONF_BACKUP="$HOME/.config/Sunshine/sunshine.conf.backup"
+SUNSHINE_CONF="$HOME/.config/sunshine/sunshine.conf"
+SUNSHINE_CONF_BACKUP="$HOME/.config/sunshine/sunshine.conf.backup"
 
 # Backup and restore functions
 backup_sunshine_config() {
@@ -48,8 +48,8 @@ output_name = $index
 # Automatic resolution management
 global_prep_cmd = [
   {
-    "do": "bash -c 'echo \"[Virtual Screen] Executing prep command: changing resolution to \$SUNSHINE_CLIENT_WIDTH x \$SUNSHINE_CLIENT_HEIGHT @ \$SUNSHINE_CLIENT_FPS\" && export DISPLAY=$display && $SCRIPT_DIR/x11-manager.sh change -w \$SUNSHINE_CLIENT_WIDTH -h \$SUNSHINE_CLIENT_HEIGHT -r \$SUNSHINE_CLIENT_FPS && echo \"[Virtual Screen] Resolution changed successfully\"'",
-    "undo": "bash -c 'echo \"[Virtual Screen] Executing undo command: turning off virtual display\" && export DISPLAY=$display && $SCRIPT_DIR/x11-manager.sh off && echo \"[Virtual Screen] Virtual display turned off\"'"
+    "do": "bash -c 'export DISPLAY=$display && $SCRIPT_DIR/x11-manager.sh change -w \$SUNSHINE_CLIENT_WIDTH -h \$SUNSHINE_CLIENT_HEIGHT -r \$SUNSHINE_CLIENT_FPS'",
+    "undo": ""
   }
 ]
 
