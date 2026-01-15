@@ -1,13 +1,10 @@
 #!/bin/bash
 # x11-manager.sh - HDMI X11 manager (On/Off)
 
-CARD=1; PORT=HDMI-A-1; OUTPUT="HDMI-1"
-CONNECTOR_SYSFS="/sys/class/drm/card${CARD}-${PORT}"
-CONNECTOR_DEBUGFS="/sys/kernel/debug/dri/${CARD}/${PORT}"
-
+PORT=HDMI-A-1; OUTPUT="HDMI-1"
+CONNECTOR_SYSFS="/sys/class/drm/card1-${PORT}"
 FORCE_FILE="${CONNECTOR_SYSFS}/force"
 STATUS_FILE="${CONNECTOR_SYSFS}/status"
-OVERRIDE_FILE="${CONNECTOR_DEBUGFS}/edid_override"
 
 # ---------- Root helpers ----------
 have_tty() { [ -t 0 ] && [ -t 1 ]; }
@@ -23,9 +20,7 @@ run_root() {
   fi
 }
 
-write_sysfs() {
-  printf '%s\n' "$1" | run_root /usr/bin/tee "$2" >/dev/null
-}
+write_sysfs() { printf '%s\n' "$1" | run_root /usr/bin/tee "$2" >/dev/null;}
 
 # ---------- Helpers ----------
 connector() {
