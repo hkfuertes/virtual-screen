@@ -37,11 +37,56 @@ Virtual Screen is a Cinnamon panel applet that provides control over virtual HDM
 git clone <repository-url>
 cd virtual-screen
 
-# Install for current user
-make install
+# Install for current user and restart Cinnamon
+make dev
 
-# Restart Cinnamon to load the applet
-make restart-cinnamon
+# Or just install without restarting
+make install
+```
+
+### Method 2: Quick Development
+
+```bash
+# Quick installation (no build step, faster for development)
+make qdev
+
+# This directly symlinks the source and restarts Cinnamon
+```
+
+### Method 3: Distributable Package
+
+```bash
+# Create zip package for distribution
+make package
+
+# The package will be generated in dist/virtual-screen@hkfuertes.zip
+```
+
+### Makefile Commands
+
+```bash
+# Development
+make dev          # Install and restart Cinnamon (recommended)
+make qdev         # Quick install and restart (faster)
+make install      # Install after build
+make quick-install # Direct symlink (no build)
+
+# Building & Packaging
+make build        # Build to build/ directory
+make package      # Create distributable .zip
+
+# Testing & Validation
+make check        # Validate required files exist
+make test         # Run basic functionality tests
+
+# Information
+make info         # Show project structure
+make help         # Show all available commands
+
+# Maintenance
+make clean        # Remove build artifacts
+make uninstall    # Remove installed applet
+make restart      # Restart Cinnamon desktop
 ```
 
 ### Method 2: Development Installation
