@@ -81,32 +81,32 @@ The applet automatically:
 
 ```bash
 # Activate virtual display connector (no resolution change)
-./applet/bin/x11-manager.sh on
+./virtual-screen@hkfuertes/bin/x11-manager.sh on
 
 # Deactivate virtual display
-./applet/bin/x11-manager.sh off
+./virtual-screen@hkfuertes/bin/x11-manager.sh off
 
 # Change resolution (requires active connector)
-./applet/bin/x11-manager.sh -w 1920 -h 1080 -r 60 change
+./virtual-screen@hkfuertes/bin/x11-manager.sh -w 1920 -h 1080 -r 60 change
 
 # Get monitor index
-./applet/bin/x11-manager.sh index
+./virtual-screen@hkfuertes/bin/x11-manager.sh index
 ```
 
 ### Sunshine Integration
 
 ```bash
 # Start Sunshine with automatic configuration (backs up original config)
-./applet/bin/sunshine-manager.sh start
+./virtual-screen@hkfuertes/bin/sunshine-manager.sh start
 
 # Stop Sunshine and restore original configuration automatically
-./applet/bin/sunshine-manager.sh stop
+./virtual-screen@hkfuertes/bin/sunshine-manager.sh stop
 
 # Check Sunshine status
-./applet/bin/sunshine-manager.sh status
+./virtual-screen@hkfuertes/bin/sunshine-manager.sh status
 
 # Configure Sunshine without starting (also backs up config)
-./applet/bin/sunshine-manager.sh configure
+./virtual-screen@hkfuertes/bin/sunshine-manager.sh configure
 ```
 
 ### Advanced Resolution Management
@@ -130,15 +130,15 @@ The applet automatically:
 ### Project Architecture
 
 ```
-virtual-screen/
-├── applet/
-│   ├── applet.js          # Main Cinnamon applet code with dynamic toggles
-│   ├── metadata.json      # Applet metadata
-│   └── bin/
-│       ├── x11-manager.sh      # Simple HDMI/X11 management
-│       └── sunshine-manager.sh # Sunshine service management
-├── Makefile               # Build system
-└── README.md             # This documentation
+virtual-screen@hkfuertes/
+├── applet.js              # Main Cinnamon applet code with dynamic toggles
+├── metadata.json          # Applet metadata
+└── bin/
+    ├── x11-manager.sh     # Simple HDMI/X11 management
+    └── sunshine-manager.sh # Sunshine service management
+
+Makefile                   # Build system
+README.md                 # This documentation
 ```
 
 ### Internal Functionality
@@ -336,8 +336,8 @@ pkexec --version
 cat /sys/class/drm/card1-HDMI-A-1/status
 
 # Test x11-manager directly
-./applet/bin/x11-manager.sh status
-./applet/bin/x11-manager.sh on
+./virtual-screen@hkfuertes/bin/x11-manager.sh status
+./virtual-screen@hkfuertes/bin/x11-manager.sh on
 
 # List X11 outputs
 xrandr --query
@@ -350,8 +350,8 @@ xrandr --query
 cat ~/.config/Sunshine/sunshine.conf
 
 # Test sunshine-manager
-./applet/bin/sunshine-manager.sh configure
-./applet/bin/sunshine-manager.sh status
+./virtual-screen@hkfuertes/bin/sunshine-manager.sh configure
+./virtual-screen@hkfuertes/bin/sunshine-manager.sh status
 
 # Check service status
 systemctl --user restart sunshine
@@ -365,13 +365,13 @@ journalctl --user -u sunshine -f
 
 ```bash
 # Test Sunshine configuration
-./applet/bin/sunshine-manager.sh configure
+./virtual-screen@hkfuertes/bin/sunshine-manager.sh configure
 
 # Check Sunshine config file
 cat ~/.config/Sunshine/sunshine.conf
 
 # Test manual resolution change
-./applet/bin/x11-manager.sh change -w 1920 -h 1080 -r 60
+./virtual-screen@hkfuertes/bin/x11-manager.sh change -w 1920 -h 1080 -r 60
 ```
 
 #### **Buttons not updating**

@@ -1,5 +1,5 @@
 UUID      ?= virtual-screen@hkfuertes
-SRC_DIR   ?= applet
+SRC_DIR   ?= virtual-screen@hkfuertes
 BUILD_DIR ?= build
 DIST_DIR  ?= dist
 
