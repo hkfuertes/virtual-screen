@@ -1,121 +1,211 @@
-# iPad as Second Display for Linux Mint via USB/Sunshine
+# Turn your iPad Air M1 into a second display for Linux Mint via USB
 
-Turn your iPad (WiFi-only or Cellular) into a second display for Linux Mint using Sunshine + Moonlight over USB networking.
+The idea is to re-use my daily iPad Air M1 as a second display. I regularly use Linux Mint so the guide will focus around it. If using Windows you can use [Spacedesk](https://www.spacedesk.net/)'s USB driver and if using Mac... Official Sidecar!
 
-## Overview
+The easiest way of displaying a screen onto a device is by using the combo [Sunshine](https://github.com/LizardByte/Sunshine) + [Moonlight](https://github.com/moonlight-stream/moonlight-ios). Sunshine is the server and Moonlight is the client. This combo is optimized to run games from your big gaming machine onto a light client (i.e. Android TV), so latency has to be low. That's why it uses GPU enc/decoding to transmit the image via network.
 
-This guide covers:
+Installation and configuration of the combo via WiFi is pretty straight forward and wont be covered here. Just install both apps, configure Sunshine, and the "server" will appear automagically on the client (in my case the iPad).
 
-1. **Virtual Display Setup** - Force HDMI output via sysfs for Sunshine streaming
-2. **USB Networking (Optional)** - Connect iPad via USB using usbmuxd NCM mode for offline/low-latency streaming
-3. **Custom Resolution Matching** - Automatically match client device aspect ratio
+... _**the extra mile is the edge cases!**_ What if I don't have a wifi because I'm travelling (i.e. train trips with no cell towers)?, or if I have to be careful with my tether device's battery? Or if I want to reduce latency at minimum? Can I just create a bridge over a USB cable? Indeed it can be done, and again... doing so with a cellular iPad is also straight forward, as the Cellular iPad does have USB-tethering available from the settings page... but if the iPad is a WiFi only device (like mine)? This is what I want to explore in this guide.
 
-## Table of Contents
+---
 
-- [Requirements](#requirements)
-- [Quick Start](#quick-start)
-- [Part 1: Virtual Display Setup](#part-1-virtual-display-setup)
-- [Part 2: USB Networking (Optional)](#part-2-usb-networking-optional)
-- [Part 3: Custom Resolution Matching](#part-3-custom-resolution-matching)
-- [Troubleshooting](#troubleshooting)
+## `usbmuxd` - or how the answer is right in front of us!
 
-## Requirements
+**Up to iOS 26.1** (my current iOS version), all iDevices support multiple USB modes including **CDC-NCM** (networking). When activated via `usbmuxd`, the iPad exposes USB network interfaces on Linux with zero iPadOS UI changes - just plug & automatic DHCP negotiation creates the network bridge.
 
-- Linux Mint x64 (Cinnamon) or Ubuntu-based distribution
-- [Sunshine](https://github.com/LizardByte/Sunshine) streaming server
-- [Moonlight](https://github.com/moonlight-stream/moonlight-ios) client on iPad
-- Graphics driver with sysfs connector control (Intel i915, AMD, NVIDIA)
-- xrandr, cvt utilities
+**Repo packages lack NCM mode support**, so custom `usbmuxd` compilation is required (Linux Mint/Ubuntu).
 
-## Quick Start
+### Installation
 
 ```bash
-# 1. Clone or download this repository
-cd sunshine-virtual-display/
+curl -fsSL https://raw.githubusercontent.com/YOUR_USERNAME/YOUR_REPO/main/install-usbmuxd.sh | sudo bash -
+```
 
-# 2. Install virtual display scripts
-sudo mkdir -p /opt/sunshine-virtual-display
-sudo cp scripts/{init,activate,deactivate}-virtual-display.sh /opt/sunshine-virtual-display/
-sudo chmod +x /opt/sunshine-virtual-display/*.sh
+This installer will (takes 5-10 minutes to compile):
+1. Install build dependencies
+2. Compile libimobiledevice stack from source
+3. Configure usbmuxd with NCM mode enabled
+4. Set up NetworkManager to ignore Apple Private interface
+5. Create `ipad-usb-connect` helper script
 
-# 3. Install systemd service
-sudo cp systemd/virtual-display-init.service /etc/systemd/system/
+Or if you prefer, follow the manual steps below:
+
+First install from apt to bootstrap systemd services:
+
+```bash
+sudo apt update
+sudo apt install usbmuxd libimobiledevice-utils libplist-utils
+```
+
+And the dependencies to build the custom version:
+```bash
+sudo apt install \
+  autoconf automake libtool pkg-config \
+  libplist-dev libssl-dev libusb-1.0-0-dev \
+  libreadline-dev libncurses5-dev \
+  git cmake build-essential python3 \
+  libfuse-dev
+```
+
+Then build custom version from [libimobiledevice](https://github.com/libimobiledevice):
+
+```bash
+# Compile libimobiledevice stack from source (cascade /usr/local) - for Mint 22.2
+# Order: libplist -> libimobiledevice-glue -> libusbmuxd -> libtatsu -> libimobiledevice -> usbmuxd
+# PKG_CONFIG_PATH ensures each step finds previous libs
+
+mkdir -p ~/src/imd && cd ~/src/imd
+
+# 0) Install build dependencies
+sudo apt update
+sudo apt install -y git build-essential pkg-config autoconf automake libtool-bin \
+  libusb-1.0-0-dev libssl-dev udev libcurl4-openssl-dev
+
+export PKG_CONFIG_PATH=/usr/local/lib/pkgconfig
+
+# 1) libplist
+git clone https://github.com/libimobiledevice/libplist.git
+cd libplist
+./autogen.sh --prefix=/usr/local
+make -j"$(nproc)"
+sudo make install
+sudo ldconfig
+cd ..
+
+# 2) libimobiledevice-glue
+git clone https://github.com/libimobiledevice/libimobiledevice-glue.git
+cd libimobiledevice-glue
+./autogen.sh --prefix=/usr/local
+make -j"$(nproc)"
+sudo make install
+sudo ldconfig
+cd ..
+
+# 3) libusbmuxd
+git clone https://github.com/libimobiledevice/libusbmuxd.git
+cd libusbmuxd
+./autogen.sh --prefix=/usr/local
+make -j"$(nproc)"
+sudo make install
+sudo ldconfig
+cd ..
+
+# 4) libtatsu (new dependency for recent libimobiledevice)
+git clone https://github.com/libimobiledevice/libtatsu.git
+cd libtatsu
+./autogen.sh --prefix=/usr/local
+make -j"$(nproc)"
+sudo make install
+sudo ldconfig
+cd ..
+
+# 5) libimobiledevice (tools like idevicepair/ideviceinfo)
+git clone https://github.com/libimobiledevice/libimobiledevice.git
+cd libimobiledevice
+./autogen.sh --prefix=/usr/local
+make -j"$(nproc)"
+sudo make install
+sudo ldconfig
+cd ..
+
+# 6) usbmuxd (the daemon)
+git clone https://github.com/libimobiledevice/usbmuxd.git
+cd usbmuxd
+./autogen.sh --prefix=/usr/local --sysconfdir=/etc --localstatedir=/var --runstatedir=/run
+make -j"$(nproc)"
+sudo make install
+sudo ldconfig
+```
+
+Edit service for custom binary + NCM mode:
+
+```bash
+sudo systemctl edit --full usbmuxd
+```
+
+```service
+[Unit]
+Description=Socket daemon for the usbmux protocol used by Apple devices
+Documentation=man:usbmuxd(8)
+
+[Service]
+Environment=USBMUXD_DEFAULT_DEVICE_MODE=3
+ExecStart=/usr/local/sbin/usbmuxd --user usbmux --systemd
+PIDFile=/run/usbmuxd.pid
+```
+
+```bash
 sudo systemctl daemon-reload
-sudo systemctl enable virtual-display-init.service
-
-# 4. Configure Sunshine (edit ~/.config/sunshine/sunshine.conf)
-# Add:
-#   output_name = HDMI-1
-#   global_prep_cmd = /opt/sunshine-virtual-display/activate-virtual-display.sh
-#   global_undo_cmd = /opt/sunshine-virtual-display/deactivate-virtual-display.sh
-
-# 5. Reboot
-sudo reboot
-
-# 6. (Optional) Install USB networking support
-bash scripts/install-usbmuxd.sh
+sudo systemctl enable --now usbmuxd
 ```
 
 ---
 
-## Part 1: Virtual Display Setup
+## The USB network is up... now what?
 
-### The Problem
+Why the NetworkManager bridge is essential: At this point you have USB link-layer connectivity (L2), but no IP addresses or routable network (L3). The iPad exposes raw CDC-NCM interfaces without any DHCP server or IP configuration - and since iPadOS shows zero UI changes, you can't manually assign IPs either. NetworkManager's shared mode provides the missing DHCP server + NAT routing to create the actual IP network bridge between your Linux Mint host and iPad.
 
-Sunshine needs a display output to stream, but:
-- Mirroring the main display is not ideal for extended desktop workflows
-- Physical HDMI dummy plugs work but are limited to fixed resolutions
-- Linux needs the HDMI connector "on" but Cinnamon shouldn't manage it
+### iPad-USB-Tethering bridge (nmcli "shared")
 
-### The Solution
+Connect iPad via USB-C. Check `dmesg | grep -i Apple` - **two CDC-NCM interfaces** appear:
 
-Force the HDMI connector via sysfs at boot, keep it disabled in xrandr, then activate it dynamically when Sunshine connects.
+- **"Apple Tethering"** (`enx...d0`): Main data networking interface for Linux↔iPad traffic.
+- **"Apple Private"** (`enx...d1`, MAC `fe:7d:5e:22:5c:e0`): iOS internal services - mark unmanaged.
 
-### Architecture
-
+1) Identify Tethering iface:
+```bash
+ip link | grep -E '^[0-9]+: enx'
+dmesg | grep -i 'Apple Tethering'
 ```
-Boot
-  └─> systemd service
-       └─> init-virtual-display.sh
-            ├─> Force HDMI connector "on" via sysfs
-            └─> Set xrandr output to --off
-                └─> Sunshine starts (HDMI exists but inactive)
-                     └─> Moonlight connects
-                          └─> activate-virtual-display.sh
-                               ├─> Read client resolution
-                               ├─> Generate custom modeline
-                               └─> Activate HDMI with exact resolution
-                                    └─> Session ends
-                                         └─> deactivate-virtual-display.sh
-                                              └─> Turn off HDMI, clean modes
+
+2) Create connection (or use `ipad-usb-connect` if you used the automated installer):
+```bash
+IF=enxa2b40fe978d0
+nmcli con down iPad-USB-Tethering 2>/dev/null || true
+nmcli con del iPad-USB-Tethering 2>/dev/null || true
+nmcli con add con-name iPad-USB-Tethering type ethernet ifname "$IF" ipv4.method shared ipv6.method shared
+nmcli con up iPad-USB-Tethering
 ```
+
+3) Block "Apple Private" (automatically done by installer):
+```bash
+sudo tee /etc/NetworkManager/conf.d/99-unmanaged-ipad-private.conf >/dev/null <<'EOF'
+[keyfile]
+unmanaged-devices=mac:fe:7d:5e:22:5c:e0
+EOF
+sudo systemctl restart NetworkManager
+```
+
+### Sunshine/Moonlight over USB bridge
+
+iPad gets IP (10.42.0.x), host 10.42.0.1. Manually add USB IP `10.42.0.1` in Moonlight iPad client. Minimal latency, perfect for offline travel.
+
+---
+
+## Extending the Desktop (Virtual Display Setup)
+
+To extend your desktop rather than mirroring the main screen, you need a separate video output. The most reliable method on Linux (specifically X11) is forcing an HDMI connector via sysfs, even without a physical monitor connected.
+
+This approach creates a virtual second display that:
+- Exists in xrandr but stays disabled until Sunshine activates it
+- Automatically matches the client device's resolution (iPad's 4:3 aspect ratio, etc.)
+- Turns off cleanly when the session ends
 
 ### Installation
 
-Scripts auto-detect:
-- HDMI connector path in `/sys/class/drm/`
-- HDMI output name in xrandr
-- Primary display output
-
-#### 1. Copy Scripts
-
 ```bash
-sudo mkdir -p /opt/sunshine-virtual-display
-sudo cp scripts/*.sh /opt/sunshine-virtual-display/
-sudo chmod +x /opt/sunshine-virtual-display/*.sh
+curl -fsSL https://raw.githubusercontent.com/YOUR_USERNAME/YOUR_REPO/main/install-virtual-display.sh | sudo bash -
 ```
 
-#### 2. Install Systemd Service
+This installer will:
+1. Download the required scripts (init, activate, deactivate)
+2. Install systemd service for boot initialization
+3. Configure virtual HDMI display
 
-```bash
-sudo cp systemd/virtual-display-init.service /etc/systemd/system/
-sudo systemctl daemon-reload
-sudo systemctl enable virtual-display-init.service
-```
+### Configure Sunshine
 
-#### 3. Configure Sunshine
-
-Edit `~/.config/sunshine/sunshine.conf`:
+After installation, edit `~/.config/sunshine/sunshine.conf`:
 
 ```conf
 output_name = HDMI-1
@@ -123,260 +213,72 @@ global_prep_cmd = /opt/sunshine-virtual-display/activate-virtual-display.sh
 global_undo_cmd = /opt/sunshine-virtual-display/deactivate-virtual-display.sh
 ```
 
-#### 4. Reboot
-
-```bash
-sudo reboot
-```
-
-### Verification
-
-Check that HDMI is connected but inactive:
-
-```bash
-xrandr | grep HDMI
-# Should show: HDMI-1 connected (no resolution active)
-```
-
-Check service status:
-
-```bash
-sudo systemctl status virtual-display-init.service
-sudo journalctl -u virtual-display-init.service
-```
-
-Check logs:
-
-```bash
-sudo tail -f /var/log/virtual-display.log
-```
-
----
-
-## Part 2: USB Networking (Optional)
-
-### Why USB Networking?
-
-WiFi streaming works great, but USB networking provides:
-- **Zero WiFi dependency** - Work on trains, planes, areas with no cell towers
-- **Lower latency** - Direct USB link eliminates WiFi overhead
-- **Battery efficiency** - No WiFi radio usage on tethering device
-- **Privacy** - No network exposure
-
-### The Challenge
-
-WiFi-only iPads don't expose USB tethering in Settings like cellular models do. However, all iOS devices up to iOS 26.1+ support **CDC-NCM** (USB networking mode) via `usbmuxd`.
-
-When activated, iPad exposes USB network interfaces with zero UI changes in iPadOS. The Linux host negotiates DHCP automatically creating a network bridge.
-
-### Solution: Custom usbmuxd with NCM Support
-
-Repository packages lack NCM mode support. We compile from source with NCM enabled.
-
-#### Automated Installation
-
-```bash
-cd sunshine-virtual-display/
-bash scripts/install-usbmuxd.sh
-```
-
-This script:
-1. Installs build dependencies
-2. Compiles libimobiledevice stack (libplist, libimobiledevice-glue, libusbmuxd, libtatsu, libimobiledevice, usbmuxd)
-3. Configures usbmuxd systemd service with `USBMUXD_DEFAULT_DEVICE_MODE=3` (NCM mode)
-4. Configures NetworkManager to ignore "Apple Private" interface
-5. Creates `/usr/local/bin/ipad-usb-connect` helper script
-
-#### Manual Setup After Installation
-
-1. **Connect iPad via USB-C**
-
-2. **Verify CDC-NCM interfaces appear:**
-
-```bash
-dmesg | grep -i 'Apple Tethering'
-ip link | grep enx
-```
-
-You should see two interfaces:
-- `enx...d0` - **Apple Tethering** (main data interface)
-- `enx...d1` - **Apple Private** (iOS internal, ignored by NetworkManager)
-
-3. **Create NetworkManager Bridge:**
-
-```bash
-ipad-usb-connect
-```
-
-Or manually:
-
-```bash
-# Find Apple Tethering interface
-IFACE=$(ip link | grep -E 'enx.*d0:' | awk '{print $2}' | tr -d ':' | head -1)
-
-# Create shared connection
-nmcli con add con-name iPad-USB-Tethering type ethernet ifname "$IFACE" \
-    ipv4.method shared \
-    ipv6.method shared
-
-nmcli con up iPad-USB-Tethering
-```
-
-4. **Verify Network:**
-
-```bash
-# Host IP is always 10.42.0.1
-# iPad gets 10.42.0.x
-nmcli con show iPad-USB-Tethering | grep IP4.ADDRESS
-```
-
-5. **Add Host IP in Moonlight:**
-
-In Moonlight iPad app, manually add server: `10.42.0.1`
-
-### Why NetworkManager Bridge is Essential
-
-At this point you have USB link-layer connectivity (L2), but no IP addresses or routing (L3). The iPad exposes raw CDC-NCM interfaces without DHCP server or IP configuration - and iPadOS shows zero UI changes.
-
-NetworkManager's `shared` mode provides:
-- DHCP server for iPad
-- NAT routing for internet passthrough
-- Automatic IP assignment (10.42.0.x/24)
-
----
-
-## Part 3: Custom Resolution Matching
-
-### The Problem
-
-HDMI dummy plugs provide standard resolutions (1920x1080), but client devices often have different aspect ratios:
-- iPad Air: 2360x1640 (4:3-ish)
-- iPad Pro 11": 2388x1668 (closer to 3:2)
-- Desktop clients: Variable
-
-Streaming at 1920x1080 to a 4:3 device wastes screen real estate with black bars.
-
-### The Solution
-
-The `activate-virtual-display.sh` script automatically:
-1. Reads `SUNSHINE_CLIENT_WIDTH`, `SUNSHINE_CLIENT_HEIGHT`, `SUNSHINE_CLIENT_FPS` from Sunshine
-2. Generates custom modeline with `cvt`
-3. Registers mode with xrandr
-4. Activates HDMI with exact client resolution
-
-No manual configuration needed - resolution adapts to each connecting client.
+Or configure via Sunshine Web UI at `https://localhost:47990`
 
 ### How It Works
 
-Sunshine exports environment variables when a client connects:
+The scripts automatically:
+1. **On boot**: Force HDMI connector "on" via sysfs, keep it disabled in xrandr
+2. **On connect**: Read client resolution from Sunshine environment variables
+3. **On connect**: Generate custom modeline with `cvt` matching client aspect ratio
+4. **On connect**: Activate HDMI with exact client resolution
+5. **On disconnect**: Turn off HDMI and clean up custom modes
+
+This provides automatic resolution matching - an iPad gets 4:3, a desktop client gets 16:9, etc.
+
+### Verification
+
+After reboot, verify the setup:
 
 ```bash
-SUNSHINE_CLIENT_WIDTH=1920
-SUNSHINE_CLIENT_HEIGHT=1080
-SUNSHINE_CLIENT_FPS=60
-SUNSHINE_CLIENT_NAME="iPad"
-```
+# Check HDMI is connected but inactive
+xrandr | grep HDMI
+# Should show: HDMI-1 connected (no resolution active)
 
-The `activate-virtual-display.sh` script uses these to generate the perfect mode:
+# Check service status
+sudo systemctl status virtual-display-init.service
 
-```bash
-# Generate modeline
-MODELINE=$(cvt $WIDTH $HEIGHT $FPS | grep Modeline | sed 's/Modeline //')
-MODE_NAME=$(echo "$MODELINE" | awk '{print $1}' | tr -d '"')
-
-# Register and activate
-xrandr --newmode $MODE_NAME $MODELINE
-xrandr --addmode HDMI-1 $MODE_NAME
-xrandr --output HDMI-1 --mode $MODE_NAME --left-of eDP-1
+# Monitor logs
+sudo tail -f /var/log/virtual-display.log
 ```
 
 ---
 
 ## Troubleshooting
 
+### USB Networking Issues
+
+**No Apple Tethering interface:**
+- Check usbmuxd: `systemctl status usbmuxd`
+- Verify NCM mode: `systemctl show usbmuxd | grep DEVICE_MODE=3`
+- Check kernel: `dmesg | grep -i cdc_ncm`
+
+**iPad doesn't get IP:**
+- Check connection: `nmcli con show iPad-USB-Tethering`
+- Verify host IP: `ip addr show` (should be 10.42.0.1/24)
+- Restart: `nmcli con down iPad-USB-Tethering && nmcli con up iPad-USB-Tethering`
+
+**Moonlight can't find server:**
+- Manually add `10.42.0.1` in Moonlight settings
+- Test connectivity: `ping 10.42.0.2` (or actual iPad IP)
+
 ### Virtual Display Issues
 
 **Service fails at boot:**
-- Check sysfs path exists: `ls /sys/class/drm/ | grep HDMI`
-- View service logs: `sudo journalctl -u virtual-display-init.service`
-- Scripts auto-detect connectors, but verify in logs
+- View logs: `sudo journalctl -u virtual-display-init.service`
+- Check HDMI connector: `ls /sys/class/drm/ | grep HDMI`
 
 **Sunshine doesn't start:**
-- Verify `output_name` matches xrandr: `xrandr | grep HDMI`
+- Verify output name: `xrandr | grep HDMI`
 - Check Sunshine logs: `journalctl --user -u sunshine`
 
-**Cinnamon extends desktop automatically:**
-- Ensure init script runs before Cinnamon
-- Check service ordering: `systemctl show virtual-display-init.service | grep Before`
-
-**Display doesn't activate on connect:**
-- Check prep_cmd logs: `sudo tail -f /var/log/virtual-display.log`
-- Verify scripts are executable: `ls -l /opt/sunshine-virtual-display/`
+**Display doesn't activate:**
+- Check logs: `sudo tail -f /var/log/virtual-display.log`
 - Test manually: `sudo DISPLAY=:0 bash /opt/sunshine-virtual-display/activate-virtual-display.sh`
-
-### USB Networking Issues
-
-**No Apple Tethering interface appears:**
-- Check usbmuxd service: `systemctl status usbmuxd`
-- Verify NCM mode: `systemctl show usbmuxd | grep Environment`
-  - Should show: `USBMUXD_DEFAULT_DEVICE_MODE=3`
-- Check kernel messages: `dmesg | grep -i cdc_ncm`
-
-**iPad doesn't get IP:**
-- Verify NetworkManager connection: `nmcli con show iPad-USB-Tethering`
-- Check DHCP range: `ip addr show`
-  - Host should be 10.42.0.1/24
-- Restart connection: `nmcli con down iPad-USB-Tethering && nmcli con up iPad-USB-Tethering`
-
-**Moonlight can't find server:**
-- Manually add IP: `10.42.0.1` in Moonlight settings
-- Verify connectivity: On Linux, `ping 10.42.0.2` (or check actual iPad IP)
-- Check firewall: `sudo ufw status`
-
-### Resolution Issues
-
-**Wrong aspect ratio:**
-- Check Sunshine variables: `sudo grep SUNSHINE_CLIENT /var/log/virtual-display.log`
-- Verify modeline generation: Look for "Modeline:" in logs
-- Test with fixed resolution: `SUNSHINE_CLIENT_WIDTH=1920 SUNSHINE_CLIENT_HEIGHT=1080 sudo -E bash activate-virtual-display.sh`
-
-**Black screen or no video:**
-- Check xrandr output is active: `xrandr | grep HDMI`
-- Verify mode is applied: Should show resolution and refresh rate
-- Try different position: Edit script to use `--same-as eDP-1` instead of `--left-of`
 
 ---
 
-## Project Structure
-
-```
-sunshine-virtual-display/
-├── scripts/
-│   ├── init-virtual-display.sh        # Boot initialization (force HDMI, set --off)
-│   ├── activate-virtual-display.sh    # Sunshine prep_cmd (create mode, activate)
-│   ├── deactivate-virtual-display.sh  # Sunshine undo_cmd (turn off, cleanup)
-│   └── install-usbmuxd.sh             # Install custom usbmuxd with NCM support
-├── systemd/
-│   └── virtual-display-init.service   # Systemd service for boot
-└── README.md                          # This file
-```
-
 ## Uninstallation
-
-### Virtual Display
-
-```bash
-sudo systemctl disable virtual-display-init.service
-sudo systemctl stop virtual-display-init.service
-sudo rm /etc/systemd/system/virtual-display-init.service
-sudo rm -rf /opt/sunshine-virtual-display
-sudo systemctl daemon-reload
-```
-
-Remove from Sunshine config:
-- `output_name`
-- `global_prep_cmd`
-- `global_undo_cmd`
 
 ### USB Networking
 
@@ -399,15 +301,25 @@ sudo rm /usr/local/sbin/usbmuxd
 sudo ldconfig
 ```
 
-## References
+### Virtual Display
+
+```bash
+sudo systemctl disable virtual-display-init.service
+sudo systemctl stop virtual-display-init.service
+sudo rm /etc/systemd/system/virtual-display-init.service
+sudo rm -rf /opt/sunshine-virtual-display
+sudo systemctl daemon-reload
+```
+
+Remove from Sunshine config: `output_name`, `global_prep_cmd`, `global_undo_cmd`
+
+---
+
+## Key references
 
 - [Sunshine](https://github.com/LizardByte/Sunshine) - Game streaming server
 - [Moonlight](https://github.com/moonlight-stream/moonlight-ios) - Game streaming client
-- [libimobiledevice/usbmuxd](https://github.com/libimobiledevice/usbmuxd) - iOS USB communication
-- [usbmuxd NCM modes](https://github.com/libimobiledevice/usbmuxd/issues/205)
-- [iOS USB networking stack](https://www.synacktiv.com/en/publications/ios-a-journey-in-the-usb-networking-stack)
-- [NetworkManager internet sharing](https://fedoramagazine.org/internet-connection-sharing-networkmanager/)
-
-## License
-
-Scripts are provided as-is for educational purposes. Use at your own risk.
+- [libimobiledevice/usbmuxd](https://github.com/libimobiledevice/usbmuxd)
+- [usbmuxd modes](https://github.com/libimobiledevice/usbmuxd/issues/205)
+- [iOS USB stack](https://www.synacktiv.com/en/publications/ios-a-journey-in-the-usb-networking-stack)
+- [NetworkManager sharing](https://fedoramagazine.org/internet-connection-sharing-networkmanager/)
