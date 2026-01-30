@@ -1,470 +1,413 @@
-# Virtual Screen
+# iPad as Second Display for Linux Mint via USB/Sunshine
 
-A Cinnamon desktop applet that manages virtual HDMI displays, allowing users to activate/deactivate virtual outputs and manage custom resolutions.
+Turn your iPad (WiFi-only or Cellular) into a second display for Linux Mint using Sunshine + Moonlight over USB networking.
 
 ## Overview
 
-Virtual Screen is a Cinnamon panel applet that provides control over virtual HDMI outputs through sysfs and X11 manipulation. It's particularly useful for:
+This guide covers:
 
-- Creating virtual displays for software testing
-- Setting up displays for game streaming (Sunshine integration)
-- Developing applications that require multiple monitors
-- Testing display configurations without additional hardware
+1. **Virtual Display Setup** - Force HDMI output via sysfs for Sunshine streaming
+2. **USB Networking (Optional)** - Connect iPad via USB using usbmuxd NCM mode for offline/low-latency streaming
+3. **Custom Resolution Matching** - Automatically match client device aspect ratio
 
-## Key Features
+## Table of Contents
 
-- **Dynamic Toggle Buttons** for virtual display and Sunshine
-- **Automatic Resolution Management** via Sunshine prep commands
-- **Simple Sunshine Integration** with inline bash commands
-- **Clean Architecture** with separated responsibilities
-- **Simple Interface** from the Cinnamon panel
-- **Development Support** with symlink installation
+- [Requirements](#requirements)
+- [Quick Start](#quick-start)
+- [Part 1: Virtual Display Setup](#part-1-virtual-display-setup)
+- [Part 2: USB Networking (Optional)](#part-2-usb-networking-optional)
+- [Part 3: Custom Resolution Matching](#part-3-custom-resolution-matching)
+- [Troubleshooting](#troubleshooting)
 
-## System Requirements
+## Requirements
 
-- **Cinnamon Desktop** (Linux Mint, Ubuntu with Cinnamon, etc.)
-- **X11 System** (not compatible with Wayland)
-- **Administrator Privileges** for sysfs manipulation
-- **Virtual HDMI Compatible** (card1-HDMI-A-1)
-- **Optional**: Sunshine for game streaming
+- Linux Mint x64 (Cinnamon) or Ubuntu-based distribution
+- [Sunshine](https://github.com/LizardByte/Sunshine) streaming server
+- [Moonlight](https://github.com/moonlight-stream/moonlight-ios) client on iPad
+- Graphics driver with sysfs connector control (Intel i915, AMD, NVIDIA)
+- xrandr, cvt utilities
 
-## Installation
-
-### Method 1: Using Makefile (Recommended)
+## Quick Start
 
 ```bash
-# Clone the repository
-git clone <repository-url>
-cd virtual-screen
+# 1. Clone or download this repository
+cd sunshine-virtual-display/
 
-# Install for current user and restart Cinnamon
-make dev
+# 2. Install virtual display scripts
+sudo mkdir -p /opt/sunshine-virtual-display
+sudo cp scripts/{init,activate,deactivate}-virtual-display.sh /opt/sunshine-virtual-display/
+sudo chmod +x /opt/sunshine-virtual-display/*.sh
 
-# Or just install without restarting
-make install
+# 3. Install systemd service
+sudo cp systemd/virtual-display-init.service /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable virtual-display-init.service
+
+# 4. Configure Sunshine (edit ~/.config/sunshine/sunshine.conf)
+# Add:
+#   output_name = HDMI-1
+#   global_prep_cmd = /opt/sunshine-virtual-display/activate-virtual-display.sh
+#   global_undo_cmd = /opt/sunshine-virtual-display/deactivate-virtual-display.sh
+
+# 5. Reboot
+sudo reboot
+
+# 6. (Optional) Install USB networking support
+bash scripts/install-usbmuxd.sh
 ```
-
-### Method 2: Quick Development
-
-```bash
-# Quick installation (no build step, faster for development)
-make qdev
-
-# This directly symlinks the source and restarts Cinnamon
-```
-
-### Method 3: Distributable Package
-
-```bash
-# Create zip package for distribution
-make package
-
-# The package will be generated in dist/virtual-screen@hkfuertes.zip
-```
-
-### Makefile Commands
-
-```bash
-# Development
-make dev          # Install and restart Cinnamon (recommended)
-make qdev         # Quick install and restart (faster)
-make install      # Install after build
-make quick-install # Direct symlink (no build)
-
-# Building & Packaging
-make build        # Build to build/ directory
-make package      # Create distributable .zip
-
-# Testing & Validation
-make check        # Validate required files exist
-make test         # Run basic functionality tests
-
-# Information
-make info         # Show project structure
-make help         # Show all available commands
-
-# Maintenance
-make clean        # Remove build artifacts
-make uninstall    # Remove installed applet
-make restart      # Restart Cinnamon desktop
-```
-
-### Method 2: Development Installation
-
-```bash
-# Symlink installation (ideal for development)
-make dev
-
-# This installs and restarts Cinnamon automatically
-```
-
-### Method 3: Distributable Package
-
-```bash
-# Create zip package for distribution
-make package
-
-# Package will be generated in dist/virtual-screen@hkfuertes.zip
-```
-
-## Usage Guide
-
-### Basic Panel Usage
-
-1. **Locate the applet**: Find the display icon in the Cinnamon panel
-2. **Context menu**: Right-click to see options
-3. **Virtual Display Toggle**: Use the switch to enable/disable virtual HDMI
-4. **Sunshine Toggle**: Use the switch to start/stop Sunshine streaming
-
-The applet automatically:
-- Updates button states in real-time
-- Saves/restores your original display resolution
-- Configures Sunshine with appropriate settings
-- Handles backup/restore of Sunshine configuration
-
-### Command Line Usage
-
-```bash
-# Activate virtual display connector (no resolution change)
-./virtual-screen@hkfuertes/bin/x11-manager.sh on
-
-# Deactivate virtual display
-./virtual-screen@hkfuertes/bin/x11-manager.sh off
-
-# Change resolution (requires active connector)
-./virtual-screen@hkfuertes/bin/x11-manager.sh -w 1920 -h 1080 -r 60 change
-
-# Get monitor index
-./virtual-screen@hkfuertes/bin/x11-manager.sh index
-```
-
-### Sunshine Integration
-
-```bash
-# Start Sunshine with automatic configuration (backs up original config)
-./virtual-screen@hkfuertes/bin/sunshine-manager.sh start
-
-# Stop Sunshine and restore original configuration automatically
-./virtual-screen@hkfuertes/bin/sunshine-manager.sh stop
-
-# Check Sunshine status
-./virtual-screen@hkfuertes/bin/sunshine-manager.sh status
-
-# Configure Sunshine without starting (also backs up config)
-./virtual-screen@hkfuertes/bin/sunshine-manager.sh configure
-```
-
-### Advanced Resolution Management
-
-```bash
-# Set custom resolution
-./applet/bin/x11-manager.sh set 1920 1080 60
-
-# Save current resolution as original
-./applet/bin/x11-manager.sh save-original
-
-# Restore original resolution
-./applet/bin/x11-manager.sh restore-original
-
-# Get current resolution
-./applet/bin/x11-manager.sh get-res
-```
-
-## Technical Details
-
-### Project Architecture
-
-```
-virtual-screen@hkfuertes/
-├── applet.js              # Main Cinnamon applet code with dynamic toggles
-├── metadata.json          # Applet metadata
-└── bin/
-    ├── x11-manager.sh     # Simple HDMI/X11 management
-    └── sunshine-manager.sh # Sunshine service management
-
-Makefile                   # Build system
-README.md                 # This documentation
-```
-
-### Internal Functionality
-
-#### HDMI Management (`x11-manager.sh`)
-
-The script manipulates kernel filesystem to control the HDMI connector:
-
-```bash
-# Sysfs files used
-/sys/class/drm/card1-HDMI-A-1/force    # Force connector state
-/sys/class/drm/card1-HDMI-A-1/status  # Current connector state
-```
-
-#### Resolution Management
-
-Uses `cvt` and `xrandr` to create and apply custom video modes:
-
-```bash
-# Generate video mode
-cvt 1920 1080 60
-
-# Create new mode in X11
-xrandr --newmode "1920x1080_60.00" [...]
-
-# Add mode to output
-xrandr --addmode HDMI-1 "1920x1080_60.00"
-
-# Apply configuration
-xrandr --output HDMI-1 --mode "1920x1080_60.00" --left-of eDP-1
-```
-
-#### Sunshine Integration
-
-The Sunshine manager provides simple service control:
-
-**Configuration:**
-- Automatically detects virtual display index
-- Configures Sunshine with `global_prep_cmd` using inline bash commands
-- Uses environment variables for dynamic resolution management
-
-**Environment Variables:**
-- `SUNSHINE_CLIENT_WIDTH` - Client resolution width
-- `SUNSHINE_CLIENT_HEIGHT` - Client resolution height
-- `SUNSHINE_CLIENT_FPS` - Client refresh rate
-
-**Inline Commands:**
-- **Pre-up**: `bash -c 'DISPLAY=$DISPLAY x11-manager.sh change -w $SUNSHINE_CLIENT_WIDTH -h $SUNSHINE_CLIENT_HEIGHT -r $SUNSHINE_CLIENT_FPS'`
-- **Pre-down**: `bash -c 'DISPLAY=$DISPLAY x11-manager.sh off'`
-- **Note**: DISPLAY is automatically detected when configuring Sunshine
-
-## Development Guide
-
-### Cinnamon Applet Structure
-
-The applet follows standard Cinnamon applet structure:
-
-```javascript
-// applet.js - Main class
-class VirtualScreenApplet extends Applet.IconApplet {
-  constructor(metadata, orientation, panel_height, instance_id) {
-    // Applet initialization
-  }
-  
-  on_applet_clicked() {
-    // Handle user click
-  }
-  
-  _run(cmd, args = []) {
-    // Execute system scripts
-  }
-}
-```
-
-### Modification and Testing
-
-```bash
-# Install for development (symlink)
-make install
-
-# Modify files in applet/
-# Changes are reflected immediately
-
-# Restart Cinnamon to test changes
-make restart-cinnamon
-```
-
-### System Scripts
-
-#### `x11-manager.sh`
-
-**Commands:**
-- `on`: Activate HDMI connector (no resolution change)
-- `off`: Deactivate HDMI connector
-- `change`: Change resolution using current WIDTH/HEIGHT/REFRESH values
-- `status`: Show current HDMI status
-- `index`: Get monitor index for Sunshine
-
-**Options:**
-- `-w WIDTH`: Set width for resolution operations
-- `-h HEIGHT`: Set height for resolution operations
-- `-r REFRESH`: Set refresh rate for resolution operations
-
-**Permissions:** Requires administrator privileges for sysfs writing
-
-#### `sunshine-manager.sh`
-
-**Commands:**
-- `start`: Backup original config, configure for virtual display, and start service
-- `stop`: Stop service and automatically restore original configuration
-- `restart`: Restart Sunshine service
-- `status`: Show current Sunshine status
-- `configure`: Backup config and configure for virtual display (without starting)
-
-**Features:**
-- Automatic backup and restore of Sunshine configuration
-- Inline bash commands for dynamic resolution management
-- Service management via systemd
-- Clean configuration management
-
-## Advanced Configuration
-
-### Custom Resolutions
-
-To add custom resolutions:
-
-```bash
-# Create custom video mode
-./applet/bin/x11-manager.sh set 2560 1440 75
-
-# Verify mode has been applied
-xrandr --query | grep HDMI-1
-```
-
-### Sunshine Configuration
-
-Manually edit `~/.config/Sunshine/sunshine.conf`:
-
-```ini
-# Basic configuration
-output_name = 1
-resolution = 1920x1080
-fps = 60
-```
-
-### Hardware Compatibility
-
-The applet is configured for:
-- **Graphics Card**: card1 (second card)
-- **HDMI Port**: HDMI-A-1
-- **X11 Output**: HDMI-1
-
-To adapt to different hardware, modify variables in `x11-manager.sh`:
-
-```bash
-PORT=HDMI-A-1          # Change according to hardware
-OUTPUT="HDMI-1"        # Change according to xrandr
-CONNECTOR_SYSFS="/sys/class/drm/card1-${PORT}"  # Adjust card
-```
-
-## Troubleshooting
-
-### Common Issues
-
-#### **Applet doesn't appear in panel**
-
-```bash
-# Verify installation
-ls -la ~/.local/share/cinnamon/applets/virtual-screen@hkfuertes/
-
-# Check applet logs
-journalctl -f | grep cinnamon
-
-# Restart Cinnamon
-cinnamon --replace &
-```
-
-#### **Permission error when activating display**
-
-```bash
-# Check sysfs files
-ls -la /sys/class/drm/card1-HDMI-A-1/
-
-# Test manually with sudo
-sudo echo "on" > /sys/class/drm/card1-HDMI-A-1/status
-
-# Check polkit integration
-pkexec --version
-```
-
-#### **Virtual display not detected**
-
-```bash
-# Check connector status
-cat /sys/class/drm/card1-HDMI-A-1/status
-
-# Test x11-manager directly
-./virtual-screen@hkfuertes/bin/x11-manager.sh status
-./virtual-screen@hkfuertes/bin/x11-manager.sh on
-
-# List X11 outputs
-xrandr --query
-```
-
-#### **Sunshine doesn't recognize display**
-
-```bash
-# Check configuration
-cat ~/.config/Sunshine/sunshine.conf
-
-# Test sunshine-manager
-./virtual-screen@hkfuertes/bin/sunshine-manager.sh configure
-./virtual-screen@hkfuertes/bin/sunshine-manager.sh status
-
-# Check service status
-systemctl --user restart sunshine
-systemctl --user status sunshine
-
-# Check Sunshine logs
-journalctl --user -u sunshine -f
-```
-
-#### **Resolution not changing automatically**
-
-```bash
-# Test Sunshine configuration
-./virtual-screen@hkfuertes/bin/sunshine-manager.sh configure
-
-# Check Sunshine config file
-cat ~/.config/Sunshine/sunshine.conf
-
-# Test manual resolution change
-./virtual-screen@hkfuertes/bin/x11-manager.sh change -w 1920 -h 1080 -r 60
-```
-
-#### **Buttons not updating**
-
-```bash
-# Check display status
-xrandr | grep HDMI-1
-
-# Check Sunshine service
-systemctl --user status sunshine
-
-# Restart applet
-make restart-cinnamon
-```
-
-### Debugging
-
-To enable debug messages:
-
-```bash
-# Run scripts with verbose output
-bash -x ./applet/bin/x11-manager.sh on
-
-# Check Cinnamon logs
-journalctl -f | grep cinnamon
-```
-
-## License
-
-This project is distributed under the same license as other Cinnamon applets.
-
-## Contributing
-
-Contributions are welcome. To contribute:
-
-1. Fork the repository
-2. Create a feature branch
-3. Make changes and test
-4. Submit a pull request
-
-## Support
-
-For help or reporting issues:
-
-- Create an issue in the project repository
-- Consult Cinnamon applets documentation
-- Check system logs for diagnosis
 
 ---
 
-**Note:** This applet requires system-level access to manipulate hardware interfaces. Ensure you understand the security implications before installing.
+## Part 1: Virtual Display Setup
+
+### The Problem
+
+Sunshine needs a display output to stream, but:
+- Mirroring the main display is not ideal for extended desktop workflows
+- Physical HDMI dummy plugs work but are limited to fixed resolutions
+- Linux needs the HDMI connector "on" but Cinnamon shouldn't manage it
+
+### The Solution
+
+Force the HDMI connector via sysfs at boot, keep it disabled in xrandr, then activate it dynamically when Sunshine connects.
+
+### Architecture
+
+```
+Boot
+  └─> systemd service
+       └─> init-virtual-display.sh
+            ├─> Force HDMI connector "on" via sysfs
+            └─> Set xrandr output to --off
+                └─> Sunshine starts (HDMI exists but inactive)
+                     └─> Moonlight connects
+                          └─> activate-virtual-display.sh
+                               ├─> Read client resolution
+                               ├─> Generate custom modeline
+                               └─> Activate HDMI with exact resolution
+                                    └─> Session ends
+                                         └─> deactivate-virtual-display.sh
+                                              └─> Turn off HDMI, clean modes
+```
+
+### Installation
+
+Scripts auto-detect:
+- HDMI connector path in `/sys/class/drm/`
+- HDMI output name in xrandr
+- Primary display output
+
+#### 1. Copy Scripts
+
+```bash
+sudo mkdir -p /opt/sunshine-virtual-display
+sudo cp scripts/*.sh /opt/sunshine-virtual-display/
+sudo chmod +x /opt/sunshine-virtual-display/*.sh
+```
+
+#### 2. Install Systemd Service
+
+```bash
+sudo cp systemd/virtual-display-init.service /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable virtual-display-init.service
+```
+
+#### 3. Configure Sunshine
+
+Edit `~/.config/sunshine/sunshine.conf`:
+
+```conf
+output_name = HDMI-1
+global_prep_cmd = /opt/sunshine-virtual-display/activate-virtual-display.sh
+global_undo_cmd = /opt/sunshine-virtual-display/deactivate-virtual-display.sh
+```
+
+#### 4. Reboot
+
+```bash
+sudo reboot
+```
+
+### Verification
+
+Check that HDMI is connected but inactive:
+
+```bash
+xrandr | grep HDMI
+# Should show: HDMI-1 connected (no resolution active)
+```
+
+Check service status:
+
+```bash
+sudo systemctl status virtual-display-init.service
+sudo journalctl -u virtual-display-init.service
+```
+
+Check logs:
+
+```bash
+sudo tail -f /var/log/virtual-display.log
+```
+
+---
+
+## Part 2: USB Networking (Optional)
+
+### Why USB Networking?
+
+WiFi streaming works great, but USB networking provides:
+- **Zero WiFi dependency** - Work on trains, planes, areas with no cell towers
+- **Lower latency** - Direct USB link eliminates WiFi overhead
+- **Battery efficiency** - No WiFi radio usage on tethering device
+- **Privacy** - No network exposure
+
+### The Challenge
+
+WiFi-only iPads don't expose USB tethering in Settings like cellular models do. However, all iOS devices up to iOS 26.1+ support **CDC-NCM** (USB networking mode) via `usbmuxd`.
+
+When activated, iPad exposes USB network interfaces with zero UI changes in iPadOS. The Linux host negotiates DHCP automatically creating a network bridge.
+
+### Solution: Custom usbmuxd with NCM Support
+
+Repository packages lack NCM mode support. We compile from source with NCM enabled.
+
+#### Automated Installation
+
+```bash
+cd sunshine-virtual-display/
+bash scripts/install-usbmuxd.sh
+```
+
+This script:
+1. Installs build dependencies
+2. Compiles libimobiledevice stack (libplist, libimobiledevice-glue, libusbmuxd, libtatsu, libimobiledevice, usbmuxd)
+3. Configures usbmuxd systemd service with `USBMUXD_DEFAULT_DEVICE_MODE=3` (NCM mode)
+4. Configures NetworkManager to ignore "Apple Private" interface
+5. Creates `/usr/local/bin/ipad-usb-connect` helper script
+
+#### Manual Setup After Installation
+
+1. **Connect iPad via USB-C**
+
+2. **Verify CDC-NCM interfaces appear:**
+
+```bash
+dmesg | grep -i 'Apple Tethering'
+ip link | grep enx
+```
+
+You should see two interfaces:
+- `enx...d0` - **Apple Tethering** (main data interface)
+- `enx...d1` - **Apple Private** (iOS internal, ignored by NetworkManager)
+
+3. **Create NetworkManager Bridge:**
+
+```bash
+ipad-usb-connect
+```
+
+Or manually:
+
+```bash
+# Find Apple Tethering interface
+IFACE=$(ip link | grep -E 'enx.*d0:' | awk '{print $2}' | tr -d ':' | head -1)
+
+# Create shared connection
+nmcli con add con-name iPad-USB-Tethering type ethernet ifname "$IFACE" \
+    ipv4.method shared \
+    ipv6.method shared
+
+nmcli con up iPad-USB-Tethering
+```
+
+4. **Verify Network:**
+
+```bash
+# Host IP is always 10.42.0.1
+# iPad gets 10.42.0.x
+nmcli con show iPad-USB-Tethering | grep IP4.ADDRESS
+```
+
+5. **Add Host IP in Moonlight:**
+
+In Moonlight iPad app, manually add server: `10.42.0.1`
+
+### Why NetworkManager Bridge is Essential
+
+At this point you have USB link-layer connectivity (L2), but no IP addresses or routing (L3). The iPad exposes raw CDC-NCM interfaces without DHCP server or IP configuration - and iPadOS shows zero UI changes.
+
+NetworkManager's `shared` mode provides:
+- DHCP server for iPad
+- NAT routing for internet passthrough
+- Automatic IP assignment (10.42.0.x/24)
+
+---
+
+## Part 3: Custom Resolution Matching
+
+### The Problem
+
+HDMI dummy plugs provide standard resolutions (1920x1080), but client devices often have different aspect ratios:
+- iPad Air: 2360x1640 (4:3-ish)
+- iPad Pro 11": 2388x1668 (closer to 3:2)
+- Desktop clients: Variable
+
+Streaming at 1920x1080 to a 4:3 device wastes screen real estate with black bars.
+
+### The Solution
+
+The `activate-virtual-display.sh` script automatically:
+1. Reads `SUNSHINE_CLIENT_WIDTH`, `SUNSHINE_CLIENT_HEIGHT`, `SUNSHINE_CLIENT_FPS` from Sunshine
+2. Generates custom modeline with `cvt`
+3. Registers mode with xrandr
+4. Activates HDMI with exact client resolution
+
+No manual configuration needed - resolution adapts to each connecting client.
+
+### How It Works
+
+Sunshine exports environment variables when a client connects:
+
+```bash
+SUNSHINE_CLIENT_WIDTH=1920
+SUNSHINE_CLIENT_HEIGHT=1080
+SUNSHINE_CLIENT_FPS=60
+SUNSHINE_CLIENT_NAME="iPad"
+```
+
+The `activate-virtual-display.sh` script uses these to generate the perfect mode:
+
+```bash
+# Generate modeline
+MODELINE=$(cvt $WIDTH $HEIGHT $FPS | grep Modeline | sed 's/Modeline //')
+MODE_NAME=$(echo "$MODELINE" | awk '{print $1}' | tr -d '"')
+
+# Register and activate
+xrandr --newmode $MODE_NAME $MODELINE
+xrandr --addmode HDMI-1 $MODE_NAME
+xrandr --output HDMI-1 --mode $MODE_NAME --left-of eDP-1
+```
+
+---
+
+## Troubleshooting
+
+### Virtual Display Issues
+
+**Service fails at boot:**
+- Check sysfs path exists: `ls /sys/class/drm/ | grep HDMI`
+- View service logs: `sudo journalctl -u virtual-display-init.service`
+- Scripts auto-detect connectors, but verify in logs
+
+**Sunshine doesn't start:**
+- Verify `output_name` matches xrandr: `xrandr | grep HDMI`
+- Check Sunshine logs: `journalctl --user -u sunshine`
+
+**Cinnamon extends desktop automatically:**
+- Ensure init script runs before Cinnamon
+- Check service ordering: `systemctl show virtual-display-init.service | grep Before`
+
+**Display doesn't activate on connect:**
+- Check prep_cmd logs: `sudo tail -f /var/log/virtual-display.log`
+- Verify scripts are executable: `ls -l /opt/sunshine-virtual-display/`
+- Test manually: `sudo DISPLAY=:0 bash /opt/sunshine-virtual-display/activate-virtual-display.sh`
+
+### USB Networking Issues
+
+**No Apple Tethering interface appears:**
+- Check usbmuxd service: `systemctl status usbmuxd`
+- Verify NCM mode: `systemctl show usbmuxd | grep Environment`
+  - Should show: `USBMUXD_DEFAULT_DEVICE_MODE=3`
+- Check kernel messages: `dmesg | grep -i cdc_ncm`
+
+**iPad doesn't get IP:**
+- Verify NetworkManager connection: `nmcli con show iPad-USB-Tethering`
+- Check DHCP range: `ip addr show`
+  - Host should be 10.42.0.1/24
+- Restart connection: `nmcli con down iPad-USB-Tethering && nmcli con up iPad-USB-Tethering`
+
+**Moonlight can't find server:**
+- Manually add IP: `10.42.0.1` in Moonlight settings
+- Verify connectivity: On Linux, `ping 10.42.0.2` (or check actual iPad IP)
+- Check firewall: `sudo ufw status`
+
+### Resolution Issues
+
+**Wrong aspect ratio:**
+- Check Sunshine variables: `sudo grep SUNSHINE_CLIENT /var/log/virtual-display.log`
+- Verify modeline generation: Look for "Modeline:" in logs
+- Test with fixed resolution: `SUNSHINE_CLIENT_WIDTH=1920 SUNSHINE_CLIENT_HEIGHT=1080 sudo -E bash activate-virtual-display.sh`
+
+**Black screen or no video:**
+- Check xrandr output is active: `xrandr | grep HDMI`
+- Verify mode is applied: Should show resolution and refresh rate
+- Try different position: Edit script to use `--same-as eDP-1` instead of `--left-of`
+
+---
+
+## Project Structure
+
+```
+sunshine-virtual-display/
+├── scripts/
+│   ├── init-virtual-display.sh        # Boot initialization (force HDMI, set --off)
+│   ├── activate-virtual-display.sh    # Sunshine prep_cmd (create mode, activate)
+│   ├── deactivate-virtual-display.sh  # Sunshine undo_cmd (turn off, cleanup)
+│   └── install-usbmuxd.sh             # Install custom usbmuxd with NCM support
+├── systemd/
+│   └── virtual-display-init.service   # Systemd service for boot
+└── README.md                          # This file
+```
+
+## Uninstallation
+
+### Virtual Display
+
+```bash
+sudo systemctl disable virtual-display-init.service
+sudo systemctl stop virtual-display-init.service
+sudo rm /etc/systemd/system/virtual-display-init.service
+sudo rm -rf /opt/sunshine-virtual-display
+sudo systemctl daemon-reload
+```
+
+Remove from Sunshine config:
+- `output_name`
+- `global_prep_cmd`
+- `global_undo_cmd`
+
+### USB Networking
+
+```bash
+# Remove NetworkManager config
+sudo rm /etc/NetworkManager/conf.d/99-unmanaged-ipad-private.conf
+sudo systemctl restart NetworkManager
+
+# Remove connection
+nmcli con del iPad-USB-Tethering
+
+# Remove helper script
+sudo rm /usr/local/bin/ipad-usb-connect
+
+# (Optional) Remove compiled libraries
+sudo rm -rf ~/src/imd
+sudo rm /usr/local/lib/libimobiledevice*
+sudo rm /usr/local/lib/libusbmuxd*
+sudo rm /usr/local/sbin/usbmuxd
+sudo ldconfig
+```
+
+## References
+
+- [Sunshine](https://github.com/LizardByte/Sunshine) - Game streaming server
+- [Moonlight](https://github.com/moonlight-stream/moonlight-ios) - Game streaming client
+- [libimobiledevice/usbmuxd](https://github.com/libimobiledevice/usbmuxd) - iOS USB communication
+- [usbmuxd NCM modes](https://github.com/libimobiledevice/usbmuxd/issues/205)
+- [iOS USB networking stack](https://www.synacktiv.com/en/publications/ios-a-journey-in-the-usb-networking-stack)
+- [NetworkManager internet sharing](https://fedoramagazine.org/internet-connection-sharing-networkmanager/)
+
+## License
+
+Scripts are provided as-is for educational purposes. Use at your own risk.

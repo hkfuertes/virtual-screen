@@ -1,0 +1,14 @@
+[Unit]
+Description=Initialize Virtual Display for Sunshine
+After=graphical.target
+Before=sunshine.service
+
+[Service]
+Type=oneshot
+ExecStart=/opt/sunshine-virtual-display/init-virtual-display.sh
+RemainAfterExit=yes
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=graphical.target
