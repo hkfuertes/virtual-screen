@@ -1,5 +1,3 @@
-# Turn your iPad Air M1 into a second display for Linux Mint via USB
-
 The idea is to re-use my daily iPad Air M1 as a second display. I regularly use Linux Mint so the guide will focus around it. If using Windows you can use [Spacedesk](https://www.spacedesk.net/)'s USB driver and if using Mac... Official Sidecar!
 
 The easiest way of displaying a screen onto a device is by using the combo [Sunshine](https://github.com/LizardByte/Sunshine) + [Moonlight](https://github.com/moonlight-stream/moonlight-ios). Sunshine is the server and Moonlight is the client. This combo is optimized to run games from your big gaming machine onto a light client (i.e. Android TV), so latency has to be low. That's why it uses GPU enc/decoding to transmit the image via network.
