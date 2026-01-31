@@ -17,7 +17,7 @@ Installation and configuration of the combo via WiFi is pretty straight forward 
 ### Installation
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/YOUR_USERNAME/YOUR_REPO/main/install-usbmuxd.sh | sudo bash -
+curl -fsSL https://raw.githubusercontent.com/hkfuertes/virtual-screen/main/install-usbmuxd.sh | sudo bash -
 ```
 
 This installer will (takes 5-10 minutes to compile):
@@ -193,7 +193,7 @@ This approach creates a virtual second display that:
 ### Installation
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/YOUR_USERNAME/YOUR_REPO/main/install-virtual-display.sh | sudo bash -
+curl -fsSL https://raw.githubusercontent.com/hkfuertes/virtual-screen/main/install-virtual-display.sh | sudo bash -
 ```
 
 This installer will:

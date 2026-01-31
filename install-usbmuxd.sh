@@ -8,7 +8,7 @@
 set -e
 
 # Repository configuration - CHANGE THIS TO YOUR REPO URL
-REPO_URL="https://raw.githubusercontent.com/YOUR_USERNAME/YOUR_REPO/main"
+REPO_URL="https://raw.githubusercontent.com/hkfuertes/virtual-screen/main"
 
 # Colors for output
 RED='\033[0;31m'
