@@ -7,9 +7,6 @@
 
 set -e
 
-# Repository configuration - CHANGE THIS TO YOUR REPO URL
-REPO_URL="https://raw.githubusercontent.com/hkfuertes/virtual-screen/main"
-
 # Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -124,12 +121,42 @@ EOF
     fi
 }
 
+detect_apple_private_mac() {
+    # Find Apple Private interface MAC dynamically
+    # It typically starts with fe:7d:5e: and appears as enx* interface
+    # with an unusual MAC (not matching standard OUI patterns)
+    
+    # Method 1: Check dmesg for Apple interfaces
+    local mac
+    mac=$(dmesg | grep -i 'Apple.*NCM\|Apple.*Private\|Apple.*networking' | grep -oE '([0-9a-f]{2}:){5}[0-9a-f]{2}' | head -1)
+    
+    if [[ -z "$mac" ]]; then
+        # Method 2: Look for enx interfaces with fe:* MAC (Apple Private convention)
+        mac=$(ip -o link show | grep 'enx' | grep -oE 'link/ether fe:[0-9a-f:]{14}' | awk '{print $2}' | head -1)
+    fi
+    
+    if [[ -z "$mac" ]]; then
+        # Method 3: Fallback - known Apple Private MAC pattern
+        # fe:7d:5e:xx:xx:xx is common for iPad Air/Pro NCM interfaces
+        warn "Could not detect Apple Private MAC automatically"
+        log "Using known Apple Private MAC pattern (fe:7d:5e:*)"
+        mac="fe:7d:5e:22:5c:e0"
+    fi
+    
+    echo "$mac"
+}
+
 configure_network_manager() {
     log "Configuring NetworkManager to ignore Apple Private interface..."
     
-    cat > /etc/NetworkManager/conf.d/99-unmanaged-ipad-private.conf <<'EOF'
+    local private_mac
+    private_mac=$(detect_apple_private_mac)
+    
+    log "Apple Private MAC: $private_mac"
+    
+    cat > /etc/NetworkManager/conf.d/99-unmanaged-ipad-private.conf <<EOF
 [keyfile]
-unmanaged-devices=mac:fe:7d:5e:22:5c:e0
+unmanaged-devices=mac:$private_mac
 EOF
     
     systemctl restart NetworkManager
@@ -140,7 +167,7 @@ EOF
 create_connection_script() {
     log "Creating iPad USB connection helper script..."
     
-    cat > /usr/local/bin/ipad-usb-connect <<'EOF'
+    cat > /usr/local/bin/ipad-usb-connect <<'SCRIPT_EOF'
 #!/bin/bash
 # ipad-usb-connect - Create NetworkManager connection for iPad USB tethering
 
@@ -154,31 +181,62 @@ NC='\033[0m'
 echo -e "${GREEN}iPad USB Tethering Connection Setup${NC}"
 echo
 
-# Find the Apple Tethering interface
-IFACE=$(ip link | grep -E 'enx.*d0:' | awk '{print $2}' | tr -d ':' | head -1)
+# Step 1: Check if any Apple device is connected via USB
+if ! lsusb | grep -q 'Apple, Inc.'; then
+    echo -e "${RED}ERROR: No Apple device detected via USB.${NC}"
+    echo "Connect your iPad and try again."
+    exit 1
+fi
 
-if [[ -z "$IFACE" ]]; then
+# Step 2: Trust the device if not already paired
+if command -v idevicepair &>/dev/null; then
+    PAIRED=$(idevicepair validate 2>/dev/null && echo "yes" || echo "no")
+    if [[ "$PAIRED" == "no" ]]; then
+        echo -e "${YELLOW}Device not trusted. Attempting to pair...${NC}"
+        echo "Check your iPad screen and tap 'Trust' if prompted."
+        idevicepair pair || {
+            echo -e "${RED}Pairing failed. Unlock your iPad and tap 'Trust'.${NC}"
+            exit 1
+        }
+        echo -e "${GREEN}Device paired successfully.${NC}"
+    fi
+fi
+
+# Step 3: Find the Apple Tethering interface
+# Apple Tethering interfaces typically appear as enx* with standard MAC
+# Apple Private interfaces start with fe:* MAC (these should be ignored)
+IFACES=$(ip -o link show | grep 'enx' | grep -v 'link/ether fe:' | awk '{print $2}' | tr -d ':')
+
+if [[ -z "$IFACES" ]]; then
     echo -e "${RED}ERROR: No Apple Tethering interface found.${NC}"
-    echo "Is iPad connected via USB?"
     echo
-    echo "Available interfaces:"
+    echo "Is usbmuxd running in NCM mode?"
+    echo "  systemctl status usbmuxd"
+    echo
+    echo "Check dmesg for Apple interfaces:"
+    echo "  dmesg | grep -i apple"
+    echo
+    echo "All enx interfaces:"
     ip link | grep -E '^[0-9]+: enx'
     exit 1
 fi
 
+# Use the first non-Private interface (should be only one for tethering)
+IFACE=$(echo "$IFACES" | head -1)
+
 echo -e "${GREEN}Found Apple Tethering interface: $IFACE${NC}"
 
-# Remove existing connection if present
+# Step 4: Remove existing connection if present
 nmcli con down iPad-USB-Tethering 2>/dev/null || true
 nmcli con del iPad-USB-Tethering 2>/dev/null || true
 
-# Create new shared connection
+# Step 5: Create new shared connection
 echo "Creating NetworkManager connection..."
 nmcli con add con-name iPad-USB-Tethering type ethernet ifname "$IFACE" \
     ipv4.method shared \
     ipv6.method shared
 
-# Activate connection
+# Step 6: Activate connection
 echo "Activating connection..."
 nmcli con up iPad-USB-Tethering
 
@@ -190,7 +248,7 @@ echo "To find iPad IP address:"
 echo "  nmcli con show iPad-USB-Tethering | grep IP4.ADDRESS"
 echo
 echo "In Moonlight on iPad, add server manually: 10.42.0.1"
-EOF
+SCRIPT_EOF
     
     chmod +x /usr/local/bin/ipad-usb-connect
     

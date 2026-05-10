@@ -3,3 +3,5 @@ dist
 *.bin
 .opencode
 .claude
+pr_description.md
+mr_description.md
