@@ -16,7 +16,28 @@ Uso:
 """
 
 import sys
+import os
 import time
+
+# Explicitly point pyusb to the DLL in the script's directory
+# This avoids the "No backend available" error on Windows
+DLL_NAME = "libusb-1.0.dll"
+script_dir = os.path.dirname(os.path.abspath(__file__))
+dll_path = os.path.join(script_dir, DLL_NAME)
+
+import usb.backend.libusb1
+_backend = usb.backend.libusb1.get_backend(find_library=lambda _: dll_path if os.path.exists(dll_path) else DLL_NAME)
+if _backend is None:
+    print(f"❌ No se pudo cargar {DLL_NAME}")
+    print(f"   Ruta buscada: {dll_path}")
+    print(f"   Existe: {os.path.exists(dll_path)}")
+    print()
+    print("Soluciones:")
+    print("  1. pip install libusb1  (incluye la DLL automáticamente)")
+    print("  2. Descarga libusb-1.0.dll desde https://libusb.info")
+    print(f"     y cópiala en: {script_dir}")
+    sys.exit(1)
+
 import usb.core
 import usb.util
 
@@ -46,7 +67,7 @@ POLL_INTERVAL = 2.0     # segundos entre reintentos
 
 def find_apple_devices():
     """Busca todos los dispositivos Apple conectados."""
-    devices = usb.core.find(find_all=True, idVendor=VID_APPLE)
+    devices = usb.core.find(find_all=True, idVendor=VID_APPLE, backend=_backend)
     return list(devices)
 
 
