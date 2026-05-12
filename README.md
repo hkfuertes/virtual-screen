@@ -1,4 +1,4 @@
-The idea is to re-use my daily iPad Air M1 as a second display. I regularly use Linux Mint so the guide will focus around it. If using Windows you can use [Spacedesk](https://www.spacedesk.net/)'s USB driver and if using Mac... Official Sidecar!
+The idea is to re-use my daily iPad Air M1 as a second display. I regularly use Linux Mint so the guide will focus around it. For **Windows**, the combo is [Apple Mobile Drivers Installer](https://github.com/NelloKudo/Apple-Mobile-Drivers-Installer) + [Spacedesk](https://www.spacedesk.net/) for USB display extension. For Mac... Official Sidecar!
 
 The easiest way of displaying a screen onto a device is by using the combo [Sunshine](https://github.com/LizardByte/Sunshine) + [Moonlight](https://github.com/moonlight-stream/moonlight-ios). Sunshine is the server and Moonlight is the client. This combo is optimized to run games from your big gaming machine onto a light client (i.e. Android TV), so latency has to be low. That's why it uses GPU enc/decoding to transmit the image via network.
 
@@ -239,6 +239,77 @@ sudo systemctl status virtual-display-init.service
 # Monitor logs
 sudo tail -f /var/log/virtual-display.log
 ```
+---
+
+## Windows Setup — Apple Drivers + Spacedesk
+
+On Windows, Spacedesk provides display extension over USB (as well as WiFi/LAN). It ships its own virtual display driver for Windows.
+
+### How it works
+
+```
+Windows PC                              iPad
+┌──────────────────────────────┐        ┌──────────────────┐
+│ Spacedesk Server             │        │                  │
+│   └─ Virtual display driver  │── USB ─│ Spacedesk Client │
+│                              │        │ (App Store)      │
+└──────────────────────────────┘        └──────────────────┘
+```
+
+The Apple Mobile Drivers Installer makes the iPad recognized properly by Windows (not just as a media device). Spacedesk then uses that USB connection to stream the extended desktop.
+
+### Step 1 — Install Apple Mobile Device Drivers
+
+Windows needs the Apple drivers to recognize the iPad properly (without them it may only show up as a media device). The [Apple Mobile Drivers Installer](https://github.com/NelloKudo/Apple-Mobile-Drivers-Installer) automates this:
+
+**Automated (PowerShell as Administrator):**
+```powershell
+iwr "https://raw.githubusercontent.com/NelloKudo/Apple-Mobile-Drivers-Installer/main/Apple_Mobile_Drivers_Installer.ps1" -OutFile "$env:TEMP\AppleDrivers.ps1"
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
+& "$env:TEMP\AppleDrivers.ps1"
+```
+
+**Manual (offline machines):**
+1. Download [iTunes](https://www.apple.com/itunes/download/win64)
+2. Extract with 7-Zip and install `AppleMobileDeviceSupport64.msi`
+3. Download driver CABs:
+   - [Apple USB Drivers](https://catalog.s.download.windowsupdate.com/d/msdownload/update/driver/drvs/2020/11/01d96dfd-2f6f-46f7-8bc3-fd82088996d2_a31ff7000e504855b3fa124bf27b3fe5bc4d0893.cab)
+   - [Apple Tether USB Drivers](https://catalog.s.download.windowsupdate.com/c/msdownload/update/driver/drvs/2017/11/netaapl_7503681835e08ce761c52858949731761e1fa5a1.cab)
+4. Extract the CABs, right-click each `.inf` → **Install**
+
+### Step 2 — Install Spacedesk
+
+**Server (Windows host):**
+1. Download from [spacedesk.net/download](https://www.spacedesk.net/download/)
+2. Install the **spacedesk DRIVER Console (SERVER)** for Windows 11/10
+3. The spacedesk service starts automatically
+
+**Client (iPad):**
+1. Install the [spacedesk app from the App Store](https://apps.apple.com/app/spacedesk/id1562473424)
+2. Plug the iPad into the Windows PC via USB
+3. Open the Spacedesk app — it should discover the Windows host via the USB connection
+4. Tap to connect
+
+### Verification
+
+```powershell
+# Verify the iPad is recognized (should appear under Portable Devices or Network Adapters)
+Get-PnpDevice | Where-Object { $_.FriendlyName -match 'Apple|iPad' }
+```
+
+### Spacedesk vs Sunshine/Moonlight on Windows
+
+| | Spacedesk (USB) | Sunshine + Moonlight |
+|---|---|---|
+| Virtual display | Built-in driver | Manual setup (virtual HDMI) |
+| USB support | Yes (requires Apple drivers) | Requires Sunshine config |
+| Config complexity | Install and go | prep_cmd + modelines |
+| Latency | Good (productivity) | Excellent (gaming) |
+| Touch input | Yes | Limited |
+| Cost | Free | Free |
+
+For general desktop extension, Spacedesk over USB is the simplest path on Windows. If you need gaming-grade latency, Sunshine/Moonlight is still the better choice.
+
 ---
 
 ## Key references
